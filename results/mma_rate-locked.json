@@ -1,0 +1,9 @@
+{
+  "device": "NVIDIA GeForce RTX 3070",
+  "results": {
+    "fp16_acc": {"iters": 1121758, "median_s": 0.078652, "TFLOPS_per_warp": 0.467},
+    "fp32_acc": {"iters": 564789, "median_s": 0.078227, "TFLOPS_per_warp": 0.237}
+  },
+  "ratio_fp32acc_over_fp16acc": 0.507,
+  "verdict": "likely_locked"
+}

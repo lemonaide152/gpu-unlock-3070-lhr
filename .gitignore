@@ -1,0 +1,10 @@
+# Never commit build outputs, probe captures or NVIDIA firmware.
+build-src/
+usb-payload/
+probe-capture/
+results-*/
+*.bin
+*.BIN
+*.efi
+*.EFI
+*.run

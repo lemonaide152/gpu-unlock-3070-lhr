@@ -1,0 +1,67 @@
+diff --git a/src/unlock/app.c b/src/unlock/app.c
+index a6ea060..7e3a4de 100644
+--- a/src/unlock/app.c
++++ b/src/unlock/app.c
+@@ -3,6 +3,7 @@
+ #include "compat/compat.h"
+ #include "checks.h"
+ #include "sha256.h"
++#include "runtime_profile.h"
+ #include "ownership.h"
+ #include "../probe/gpu_family.h"
+ #include "vendor/unlock_610.h"
+@@ -114,7 +115,10 @@ static BOOLEAN DisplayCheck(VOID) {
+         /* EDK2 ConSplitter forwards QueryMode to its sole physical GOP. Accept
+            that RGB/BGR result only on the system console, then match it against
+            the one validated Intel GOP after enumeration (handle order varies). */
+-        if (handles[i] == Table->ConsoleOutHandle && !forwarding) {
++        /* AMI firmware: the pathless aggregator GOP is not ConsoleOutHandle
++           (the probe reports console_handle=0). Accept at most one such forwarder;
++           it must still match the single validated independent physical GOP below. */
++        if (!forwarding) {
+           forwarded = info;
+           forwarding = TRUE;
+           continue;
+@@ -589,6 +593,20 @@ EFI_STATUS EFIAPI efi_main(EFI_HANDLE Image, EFI_SYSTEM_TABLE *St) {
+   if (EFI_ERROR(status)) goto finish;
+   UINT8 secure = 0xff;
+   UINTN bytes = 1;
++#ifdef GU_RUNTIME_PROFILE_BUILD
++  Stage = "profile";
++  status = GuProfileLoad(GuIoParent());
++  if (!EFI_ERROR(status))
++    GuLog("PROFILE v1 loaded: PCI=%08x subsystem=%08x chip=%08x FB=%u MiB PROM=%s\n",
++          GuProfile.identity, GuProfile.subsystem, GuProfile.chip, GuProfile.fb_mib,
++          GuProfile.prom_sha256);
++  else
++    GuLog("PROFILE load failed: status=%#llx\n", (unsigned long long)status);
++  if (EFI_ERROR(status) || !GuLogReady()) {
++    if (!EFI_ERROR(status)) status = EFI_DEVICE_ERROR;
++    goto finish;
++  }
++#endif
+   Stage = "secure-boot";
+   status = St->RuntimeServices->GetVariable(L"SecureBoot", &GlobalGuid, NULL, &bytes, &secure);
+   if (EFI_ERROR(status) || bytes != 1 || secure) {
+diff --git a/src/unlock/app_io.c b/src/unlock/app_io.c
+index f094807..072453f 100644
+--- a/src/unlock/app_io.c
++++ b/src/unlock/app_io.c
+@@ -165,6 +165,8 @@ static EFI_STATUS IoOpen(EFI_HANDLE Image, EFI_SYSTEM_TABLE *St, BOOLEAN Shared,
+   return EFI_VOLUME_FULL;
+ }
+ EFI_STATUS GuIoOpen(EFI_HANDLE Image, EFI_SYSTEM_TABLE *St) { return IoOpen(Image, St, FALSE, 0); }
++/* independent-display build: read-only access to \\RTX-UNLOCK for PROFILE.BIN. */
++EFI_FILE_PROTOCOL *GuIoParent(VOID) { return Parent; }
+ EFI_STATUS GuIoOpenRun(EFI_HANDLE Image, EFI_SYSTEM_TABLE *St, UINTN Slot) {
+   return IoOpen(Image, St, TRUE, Slot);
+ }
+diff --git a/src/unlock/app_io.h b/src/unlock/app_io.h
+index c9a392e..fc4e43e 100644
+--- a/src/unlock/app_io.h
++++ b/src/unlock/app_io.h
+@@ -8,3 +8,4 @@ EFI_STATUS GuLoadAssets(VOID);
+ VOID GuReleaseAssets(VOID);
+ BOOLEAN GuLogReady(VOID);
+ VOID GuConsole(const char *Text);
++EFI_FILE_PROTOCOL *GuIoParent(VOID);
