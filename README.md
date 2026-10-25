@@ -7,6 +7,8 @@ runs **before Windows starts**, from a UEFI application on a USB stick.
 > **Status: experimental.** We tested this build on **one card in one PC**.
 > Read [Risks](#risks) before you start.
 
+> **AI agents:** follow [AGENTS.md](AGENTS.md), a step-by-step replication brief with checks and stop conditions.
+
 ## Results at a glance
 
 **Our card** (RTX 3070 LHR, this kit, Windows 11, one unlock run):
