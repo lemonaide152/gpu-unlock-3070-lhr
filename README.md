@@ -1,4 +1,4 @@
-# gpu-unlock-3070lhr
+# gpu-unlock-3070-lhr
 
 A guide and build kit to apply the FP32-accumulate tensor-core unlock to a
 **GeForce RTX 3070 LHR (GA104, PCI `10de:2488`)** on **Windows**. The unlock
@@ -6,6 +6,34 @@ runs **before Windows starts**, from a UEFI application on a USB stick.
 
 > **Status: experimental.** We tested this build on **one card in one PC**.
 > Read [Risks](#risks) before you start.
+
+## Results at a glance
+
+**Our card** (RTX 3070 LHR, this kit, Windows 11, one unlock run):
+
+| what | number |
+|---|---|
+| tensor-core mma ratio, FP32-acc / FP16-acc (`verify/mma_rate.py`) | **0.507 → 1.000** |
+| unlock run | completed clean (`FINAL status=0 ... clean=1`) |
+| llama.cpp Qwen3-8B Q4_K_M prefill | +2.3 % to +8.3 % (upper bound, see [Expected results](#expected-results)) |
+| dense GEMM TFLOPS | not measured yet |
+| S3 sleep and warm reboot | not measured yet. The unlock is volatile by design, and the UEFI flow has no resume path, so we expect S3 and cold power-off to clear it. |
+
+**Other users' cards** (same PCI ID `10de:2488`, Zagitta Linux kernel module,
+not this kit, not our measurements):
+
+- [Zagitta #74](https://github.com/Zagitta/gpu-unlock/issues/74): GEMM with
+  FP32 accumulate +76 % to +79 % (BF16 +77 %, FP16 +79 %, TF32 +76 %).
+- [Zagitta #137](https://github.com/Zagitta/gpu-unlock/issues/137) (Gigabyte
+  card): BF16 GEMM +77 % to +84 %. **1 of 5 unlocked boots hard-locked** (the
+  first boot, cause unknown).
+
+Details are in [COMPATIBILITY.md](COMPATIBILITY.md).
+
+**Related projects:** [Zagitta/gpu-unlock](https://github.com/Zagitta/gpu-unlock)
+(Linux kernel module, the original research) ·
+[impacifist/Windows-GPU-UNLOCK](https://github.com/impacifist/Windows-GPU-UNLOCK)
+(UEFI port and Windows guide for other Ampere cards).
 
 ## Who this is for
 
@@ -305,7 +333,8 @@ FP32 accumulation, public reports on GA104 show about +77 % to +84 %. See
 
 ## Known limits
 
-- The unlock is lost on cold power-off and on S3 sleep.
+- The unlock is volatile. By design it is lost on cold power-off and on S3
+  sleep. We have not measured S3 on our card yet.
 - Warm-reboot behavior is unverified.
 - The boot display must come from a non-NVIDIA device. On our PC, the
   upstream path that keeps the display on the RTX card failed with
@@ -318,8 +347,10 @@ FP32 accumulation, public reports on GA104 show about +77 % to +84 %. See
 ## Report your card
 
 Please report your result, good or bad.
-[Open a new issue](https://github.com/lemonaide152/gpu-unlock-3070-lhr/issues/new) and give the fields in
-[COMPATIBILITY.md](COMPATIBILITY.md#submit-your-card).
+[Open a compatibility report](https://github.com/lemonaide152/gpu-unlock-3070-lhr/issues/new?template=compatibility-report.yml)
+(the form asks for the fields in
+[COMPATIBILITY.md](COMPATIBILITY.md#submit-your-card)). For questions, use
+[Discussions](https://github.com/lemonaide152/gpu-unlock-3070-lhr/discussions).
 
 ## Credits
 

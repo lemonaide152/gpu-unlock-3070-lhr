@@ -25,7 +25,7 @@ them from the linked public issues and did not test them. A field is
 | TF32 | not measured | 23.12 → 40.74 TFLOPS (+76 %) | 8192³: 22.6 → 40.3 (+78 %) |
 | INT8 | not measured | unknown | no change (41.8 → 42.3 TOPS) |
 | LLM | llama.cpp Qwen3-8B Q4_K_M, `-ngl 99`: pp512 +2.3 %, pp4096 +3.7 %, pp16384 +8.3 %, tg128 +3.4 % ² | unknown | Ollama qwen3-vl:4b (quantized): no change |
-| after S3 sleep | lost (the UEFI flow has no resume path) | still unlocked (the module unlocks again on resume) | not tested |
+| after S3 sleep | expected lost by design (the UEFI flow has no resume path); not measured | still unlocked (the module unlocks again on resume) | not tested |
 | warm reboot | unverified | unknown | the module unlocked again on 3 warm reboots |
 | stability | one unlock run, completed clean | unknown | **1 of 5 unlocked boots hard-locked** (the first boot; cause unknown). The next 4 boots were clean. |
 
@@ -48,7 +48,7 @@ the unlock does not speed up. See the [README](README.md#expected-results).
 
 Please report every result, good or bad. A failed run is also useful.
 
-1. [Open a new issue in this repository](https://github.com/lemonaide152/gpu-unlock-3070-lhr/issues/new) with the title
+1. [Open a compatibility report](https://github.com/lemonaide152/gpu-unlock-3070-lhr/issues/new?template=compatibility-report.yml) (an issue form) with the title
    `Compatibility: <card> (<PCI ID>), <result>`.
 2. Give these fields. Write `unknown` for a field you do not know.
    - Card name and PCI ID (from Device Manager → Hardware Ids, or
