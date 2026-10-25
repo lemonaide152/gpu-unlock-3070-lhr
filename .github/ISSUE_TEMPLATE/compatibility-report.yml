@@ -1,0 +1,97 @@
+name: Compatibility report
+description: Report how this kit worked on your card. A failed run is also useful.
+title: "Compatibility: <card> (<PCI ID>), <result>"
+labels: ["compatibility"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for testing. Write `unknown` for a field you do not know.
+        **Remove private data before you post.** Do not post your PROM dump (`PROM.BIN`, `ROMIMAGE.BIN`), serial numbers, PC names, user names, file paths or IP addresses. Do not attach NVIDIA firmware files.
+        If you used the Linux kernel module, report to [Zagitta/gpu-unlock](https://github.com/Zagitta/gpu-unlock/issues/new?template=compatibility-report.yml) instead.
+
+  - type: dropdown
+    id: result
+    attributes:
+      label: Result
+      options:
+        - Unlocked (mma ratio about 1.0)
+        - Unlock completed (FINAL clean=1), but ratio still about 0.5
+        - Unlock refused or failed (see log)
+        - Probe only, did not try the unlock
+    validations:
+      required: true
+
+  - type: input
+    id: card
+    attributes:
+      label: Card
+      description: Brand, model and memory size. Say if the card is modified.
+      placeholder: RTX 3070 LHR 8 GB, stock
+    validations:
+      required: true
+
+  - type: input
+    id: device-id
+    attributes:
+      label: PCI device ID
+      description: From Device Manager → Hardware Ids, or `lspci -nn`. Subsystem ID is optional.
+      placeholder: 10de:2488
+    validations:
+      required: true
+
+  - type: input
+    id: vbios
+    attributes:
+      label: VBIOS version
+      description: "`nvidia-smi -q | findstr /C:\"VBIOS\"` or GPU-Z."
+      placeholder: 94.04.46.00.1a
+    validations:
+      required: true
+
+  - type: input
+    id: driver
+    attributes:
+      label: NVIDIA driver version
+      placeholder: "576.xx"
+    validations:
+      required: true
+
+  - type: input
+    id: os
+    attributes:
+      label: OS
+      description: OS and build, and whether you measured in WSL2 or native Linux.
+      placeholder: Windows 11 24H2, measured in WSL2
+    validations:
+      required: true
+
+  - type: textarea
+    id: boot-method
+    attributes:
+      label: Boot method and display setup
+      description: How you booted the EFI (one-time boot menu, other), Secure Boot and CSM state, which device drives the boot display (iGPU or RTX card), and the power limit.
+      placeholder: |
+        one-time boot menu (F11), Secure Boot off, CSM off
+        boot display: Intel iGPU, no cable on the RTX card
+        power limit: stock
+    validations:
+      required: true
+
+  - type: textarea
+    id: results
+    attributes:
+      label: Results
+      description: The `verify/mma_rate.py` JSON output, locked and unlocked, and the `FINAL` line from `RTX-UNLOCK\RUNnn\UNLOCK.TXT`. Optional benchmarks with the exact command and any confounds.
+      render: text
+    validations:
+      required: true
+
+  - type: textarea
+    id: stability
+    attributes:
+      label: Stability
+      description: Number of unlocked boots, any hang, freeze or crash and what was running at that time. Optional S3 sleep and warm-reboot results (run `mma_rate.py` after each).
+      placeholder: 3 unlocked boots, no hangs. Warm reboot not tested.
+    validations:
+      required: true
