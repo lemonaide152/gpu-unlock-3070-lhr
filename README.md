@@ -352,6 +352,17 @@ Please report your result, good or bad.
 [COMPATIBILITY.md](COMPATIBILITY.md#submit-your-card)). For questions, use
 [Discussions](https://github.com/lemonaide152/gpu-unlock-3070-lhr/discussions).
 
+## Support me
+
+If this guide helped your card, you can support the lab and the next round
+of tests with ETH on Ethereum mainnet:
+
+```
+0xe778EcCbc639e69aAF8Cedf1f0402ec00ebdE604
+```
+
+A compatibility report for your card helps just as much.
+
 ## Credits
 
 This kit is a small patch and build scripts on top of the work of others:
