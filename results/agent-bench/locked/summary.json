@@ -1,0 +1,279 @@
+{
+ "schema": 1,
+ "session": "locked",
+ "state": "locked",
+ "gpu": {
+  "name": "NVIDIA GeForce RTX 3070",
+  "driver": "621.01",
+  "power_limit_w": "220.00 W"
+ },
+ "display_on_igpu": false,
+ "power_limit_changed": false,
+ "mma_ratio": null,
+ "coldstart": {
+  "timeline": [
+   {
+    "phase": "power_on",
+    "source_expected": "manual",
+    "desc": "power button pressed (the owner marks it, or a wall-meter rise)",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": null
+   },
+   {
+    "phase": "unlock_done",
+    "source_expected": "manual",
+    "desc": "UEFI unlock app printed FINAL status (from the stick log or a manual mark)",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": null
+   },
+   {
+    "phase": "windows_boot",
+    "source_expected": "auto",
+    "desc": "Windows LastBootUpTime (kernel start)",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": null
+   },
+   {
+    "phase": "wsl_up",
+    "source_expected": "auto",
+    "desc": "WSL2 VM boot time (/proc/uptime)",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": null
+   },
+   {
+    "phase": "server_start",
+    "source_expected": "auto",
+    "desc": "llama-lab unit ActiveEnterTimestamp",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": null
+   },
+   {
+    "phase": "model_ready",
+    "source_expected": "auto",
+    "desc": "first /health 200 after server_start",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": null
+   },
+   {
+    "phase": "first_token",
+    "source_expected": "auto",
+    "desc": "first streamed token of the TTFT probe",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": null
+   },
+   {
+    "phase": "warm",
+    "source_expected": "auto",
+    "desc": "3 consecutive probes within 10% decode tok/s",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": null
+   },
+   {
+    "phase": "first_pi_task_start",
+    "source_expected": "auto",
+    "desc": "first pi task started (results.jsonl)",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": null
+   },
+   {
+    "phase": "first_pi_task_pass",
+    "source_expected": "auto",
+    "desc": "first pi task that passed its hidden check",
+    "at": null,
+    "since_origin_s": null,
+    "step_s": 1360.8
+   }
+  ],
+  "fw_post_time_ms": null,
+  "server_already_up": null,
+  "time_to_first_token_s": null,
+  "time_to_first_pass_s": null,
+  "origin": null,
+  "_note": "Wall-clock times removed for the public copy. step_s durations are kept."
+ },
+ "pi": {
+  "overall": {
+   "runs": 24,
+   "passes": 2,
+   "success_rate": 0.08333333333333333,
+   "success_ci95": [
+    0.0232,
+    0.2585
+   ],
+   "median_wall_s": 71.634546865,
+   "mean_wall_s": 190.7182521315,
+   "tasks_per_hour_serial": 18.876011916876234,
+   "passes_per_hour_serial": 1.5730009930730193,
+   "mean_out_tokens": 3111.9583333333335,
+   "mean_prompt_tokens": 34224.833333333336,
+   "median_out_tps": 17.905704780530026,
+   "board_wh_per_task": 2.9896527221819755,
+   "board_wh_per_pass": 35.875832666183705,
+   "wall_wh_per_task": null,
+   "board_w_mean": 56.43272041122843,
+   "board_wh_per_mtok_out": 960.6981848563661
+  },
+  "by_role": {
+   "ci": {
+    "runs": 4,
+    "passes": 0,
+    "success_rate": 0.0,
+    "success_ci95": [
+     0,
+     0.4899
+    ],
+    "median_wall_s": 266.156254866,
+    "mean_wall_s": 269.13555244625,
+    "tasks_per_hour_serial": 13.376159215230281,
+    "passes_per_hour_serial": 0.0,
+    "mean_out_tokens": 4638.75,
+    "mean_prompt_tokens": 24720,
+    "median_out_tps": 18.189487195557625,
+    "board_wh_per_task": 4.117331678326892,
+    "board_wh_per_pass": null,
+    "wall_wh_per_task": null,
+    "board_w_mean": 55.074084071211814,
+    "board_wh_per_mtok_out": 887.5950802105938
+   },
+   "debugger": {
+    "runs": 4,
+    "passes": 0,
+    "success_rate": 0.0,
+    "success_ci95": [
+     0,
+     0.4899
+    ],
+    "median_wall_s": 185.1632205555,
+    "mean_wall_s": 181.96789899625,
+    "tasks_per_hour_serial": 19.78370921386628,
+    "passes_per_hour_serial": 0.0,
+    "mean_out_tokens": 3069.5,
+    "mean_prompt_tokens": 53127,
+    "median_out_tps": 17.84449655188818,
+    "board_wh_per_task": 3.0001858342824046,
+    "board_wh_per_pass": null,
+    "wall_wh_per_task": null,
+    "board_w_mean": 59.3548041330039,
+    "board_wh_per_mtok_out": 977.4184180753884
+   },
+   "implementer": {
+    "runs": 4,
+    "passes": 0,
+    "success_rate": 0.0,
+    "success_ci95": [
+     0,
+     0.4899
+    ],
+    "median_wall_s": 174.6327272945,
+    "mean_wall_s": 198.15560811575,
+    "tasks_per_hour_serial": 18.16754031961138,
+    "passes_per_hour_serial": 0.0,
+    "mean_out_tokens": 3346.25,
+    "mean_prompt_tokens": 49348,
+    "median_out_tps": 17.68254604430337,
+    "board_wh_per_task": 3.225358826887645,
+    "board_wh_per_pass": null,
+    "wall_wh_per_task": null,
+    "board_w_mean": 58.596836532695754,
+    "board_wh_per_mtok_out": 963.8726415801704
+   },
+   "pm": {
+    "runs": 4,
+    "passes": 2,
+    "success_rate": 0.5,
+    "success_ci95": [
+     0.15,
+     0.85
+    ],
+    "median_wall_s": 40.69216625200001,
+    "mean_wall_s": 44.808710456,
+    "tasks_per_hour_serial": 80.34152206935362,
+    "passes_per_hour_serial": 40.17076103467681,
+    "mean_out_tokens": 868.5,
+    "mean_prompt_tokens": 5568.25,
+    "median_out_tps": 19.706763312949647,
+    "board_wh_per_task": 0.7306308010594738,
+    "board_wh_per_pass": 1.4612616021189475,
+    "wall_wh_per_task": null,
+    "board_w_mean": 58.69999062786923,
+    "board_wh_per_mtok_out": 841.255959769112
+   },
+   "reviewer": {
+    "runs": 4,
+    "passes": 0,
+    "success_rate": 0.0,
+    "success_ci95": [
+     0,
+     0.4899
+    ],
+    "median_wall_s": 17.7933151495,
+    "mean_wall_s": 18.65640235775,
+    "tasks_per_hour_serial": 192.96324827088299,
+    "passes_per_hour_serial": 0.0,
+    "mean_out_tokens": 320.5,
+    "mean_prompt_tokens": 11286.75,
+    "median_out_tps": 17.905704780530026,
+    "board_wh_per_task": 0.4396200050060854,
+    "board_wh_per_pass": null,
+    "wall_wh_per_task": null,
+    "board_w_mean": 84.83050417083608,
+    "board_wh_per_mtok_out": 1371.669282390282
+   },
+   "testwriter": {
+    "runs": 4,
+    "passes": 0,
+    "success_rate": 0.0,
+    "success_ci95": [
+     0,
+     0.4899
+    ],
+    "median_wall_s": 501.354270166,
+    "mean_wall_s": 431.585340417,
+    "tasks_per_hour_serial": 8.3413398530211,
+    "passes_per_hour_serial": 0.0,
+    "mean_out_tokens": 6428.25,
+    "mean_prompt_tokens": 61299,
+    "median_out_tps": 16.906774419615186,
+    "board_wh_per_task": 6.4247891875293535,
+    "board_wh_per_pass": null,
+    "wall_wh_per_task": null,
+    "board_w_mean": 53.59135009719765,
+    "board_wh_per_mtok_out": 999.4616244746786
+   }
+  },
+  "n_runs": 24
+ },
+ "tokbench": null,
+ "tokbench_long": null,
+ "occupancy": null,
+ "power": {
+  "board_samples": 2109,
+  "wall_samples": 0,
+  "board_w_mean_all": 57.367980085348506,
+  "rest_of_system_w_assumed": 65.0,
+  "method": "wall meter when wall_samples>0, else nvidia-smi board power + rest_of_system_w_assumed (labeled assumption)"
+ },
+ "labels": {
+  "measured": [
+   "mma_ratio",
+   "coldstart",
+   "pi",
+   "tokbench",
+   "occupancy",
+   "power.board_*",
+   "power.wall_*"
+  ],
+  "assumed": [
+   "power.rest_of_system_w_assumed"
+  ]
+ }
+}

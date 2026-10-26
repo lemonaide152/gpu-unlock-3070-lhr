@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "session": "locked",
+  "state": "locked",
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 3070",
+    "driver": "621.01",
+    "power_limit_w": "220.00 W"
+  },
+  "display_on_igpu": false,
+  "power_limit_changed": false,
+  "note": "Retro ingest of an earlier locked agent bench. Desktop display on the RTX card. mma ratio not measured in this session. Power from a 5 s nvidia-smi log."
+}

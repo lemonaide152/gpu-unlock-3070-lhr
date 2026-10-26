@@ -1,0 +1,13 @@
+{
+  "schema": 1,
+  "session": "unlocked",
+  "state": "unlocked",
+  "gpu": {
+    "name": "NVIDIA GeForce RTX 3070",
+    "driver": "621.01",
+    "power_limit_w": "220.00 W"
+  },
+  "display_on_igpu": true,
+  "power_limit_changed": false,
+  "note": "Retro ingest of the unlocked replication agent bench, n=3 per task. mma ratio from the replication. Power from 5 s telemetry that starts after the first tasks, so early tasks have no power data."
+}

@@ -1,0 +1,270 @@
+{
+  "schema": 1,
+  "locked_session": "locked",
+  "unlocked_session": "unlocked",
+  "confounds": {
+    "display_on_igpu": [
+      false,
+      true
+    ],
+    "same_bench_tasks": true
+  },
+  "rows": [
+    {
+      "metric": "mma ratio",
+      "key": "mma_ratio",
+      "locked": null,
+      "unlocked": 1.0,
+      "delta_pct": null,
+      "better": "higher"
+    },
+    {
+      "metric": "time to first token s",
+      "key": "coldstart.time_to_first_token_s",
+      "locked": null,
+      "unlocked": null,
+      "delta_pct": null,
+      "better": "lower"
+    },
+    {
+      "metric": "time to first passing task s",
+      "key": "coldstart.time_to_first_pass_s",
+      "locked": null,
+      "unlocked": null,
+      "delta_pct": null,
+      "better": "lower"
+    },
+    {
+      "metric": "pi success rate",
+      "key": "pi.overall.success_rate",
+      "locked": 0.08333333333333333,
+      "unlocked": 0.08333333333333333,
+      "delta_pct": 0.0,
+      "better": "higher"
+    },
+    {
+      "metric": "pi median wall s",
+      "key": "pi.overall.median_wall_s",
+      "locked": 71.634546865,
+      "unlocked": 73.395080048,
+      "delta_pct": 2.4576594116213686,
+      "better": "lower"
+    },
+    {
+      "metric": "pi passes per hour",
+      "key": "pi.overall.passes_per_hour_serial",
+      "locked": 1.5730009930730193,
+      "unlocked": 1.7160180885892748,
+      "delta_pct": 9.09199016059468,
+      "better": "higher"
+    },
+    {
+      "metric": "pi median out tok/s",
+      "key": "pi.overall.median_out_tps",
+      "locked": 17.905704780530026,
+      "unlocked": 18.219981789714943,
+      "delta_pct": 1.7551781012644037,
+      "better": "higher"
+    },
+    {
+      "metric": "board Wh per task",
+      "key": "pi.overall.board_wh_per_task",
+      "locked": 2.9896527221819755,
+      "unlocked": 2.53477331100994,
+      "delta_pct": -15.215125415638417,
+      "better": "lower"
+    },
+    {
+      "metric": "board Wh per pass",
+      "key": "pi.overall.board_wh_per_pass",
+      "locked": 35.875832666183705,
+      "unlocked": null,
+      "delta_pct": null,
+      "better": "lower"
+    },
+    {
+      "metric": "board Wh per 1M out tok",
+      "key": "pi.overall.board_wh_per_mtok_out",
+      "locked": 960.6981848563661,
+      "unlocked": null,
+      "delta_pct": null,
+      "better": "lower"
+    },
+    {
+      "metric": "board W mean during pi",
+      "key": "pi.overall.board_w_mean",
+      "locked": 56.43272041122843,
+      "unlocked": null,
+      "delta_pct": null,
+      "better": "lower"
+    },
+    {
+      "metric": "ci success_rate",
+      "key": "pi.by_role.ci.success_rate",
+      "locked": 0.0,
+      "unlocked": 0.0,
+      "delta_pct": null
+    },
+    {
+      "metric": "ci median_wall_s",
+      "key": "pi.by_role.ci.median_wall_s",
+      "locked": 266.156254866,
+      "unlocked": 55.787677114,
+      "delta_pct": -79.03950176106623
+    },
+    {
+      "metric": "ci median_out_tps",
+      "key": "pi.by_role.ci.median_out_tps",
+      "locked": 18.189487195557625,
+      "unlocked": 19.89273255493656,
+      "delta_pct": 9.363899823382134
+    },
+    {
+      "metric": "ci board_wh_per_task",
+      "key": "pi.by_role.ci.board_wh_per_task",
+      "locked": 4.117331678326892,
+      "unlocked": 2.4869884061914656,
+      "delta_pct": -39.597083730643924
+    },
+    {
+      "metric": "debugger success_rate",
+      "key": "pi.by_role.debugger.success_rate",
+      "locked": 0.0,
+      "unlocked": 0.0,
+      "delta_pct": null
+    },
+    {
+      "metric": "debugger median_wall_s",
+      "key": "pi.by_role.debugger.median_wall_s",
+      "locked": 185.1632205555,
+      "unlocked": 304.4522377375,
+      "delta_pct": 64.42371051017923
+    },
+    {
+      "metric": "debugger median_out_tps",
+      "key": "pi.by_role.debugger.median_out_tps",
+      "locked": 17.84449655188818,
+      "unlocked": 17.03118395328928,
+      "delta_pct": -4.557778339298918
+    },
+    {
+      "metric": "debugger board_wh_per_task",
+      "key": "pi.by_role.debugger.board_wh_per_task",
+      "locked": 3.0001858342824046,
+      "unlocked": 4.5567693116730466,
+      "delta_pct": 51.8829020390649
+    },
+    {
+      "metric": "implementer success_rate",
+      "key": "pi.by_role.implementer.success_rate",
+      "locked": 0.0,
+      "unlocked": 0.0,
+      "delta_pct": null
+    },
+    {
+      "metric": "implementer median_wall_s",
+      "key": "pi.by_role.implementer.median_wall_s",
+      "locked": 174.6327272945,
+      "unlocked": 98.2677072255,
+      "delta_pct": -43.728928278270715
+    },
+    {
+      "metric": "implementer median_out_tps",
+      "key": "pi.by_role.implementer.median_out_tps",
+      "locked": 17.68254604430337,
+      "unlocked": 17.92038912273138,
+      "delta_pct": 1.345072580792936
+    },
+    {
+      "metric": "implementer board_wh_per_task",
+      "key": "pi.by_role.implementer.board_wh_per_task",
+      "locked": 3.225358826887645,
+      "unlocked": 3.0024704503697395,
+      "delta_pct": -6.910498598166355
+    },
+    {
+      "metric": "pm success_rate",
+      "key": "pi.by_role.pm.success_rate",
+      "locked": 0.5,
+      "unlocked": 0.5,
+      "delta_pct": 0.0
+    },
+    {
+      "metric": "pm median_wall_s",
+      "key": "pi.by_role.pm.median_wall_s",
+      "locked": 40.69216625200001,
+      "unlocked": 57.884328322,
+      "delta_pct": 42.24931640043864
+    },
+    {
+      "metric": "pm median_out_tps",
+      "key": "pi.by_role.pm.median_out_tps",
+      "locked": 19.706763312949647,
+      "unlocked": 18.659932448258697,
+      "delta_pct": -5.312038552789943
+    },
+    {
+      "metric": "pm board_wh_per_task",
+      "key": "pi.by_role.pm.board_wh_per_task",
+      "locked": 0.7306308010594738,
+      "unlocked": 0.8985550581690601,
+      "delta_pct": 22.983462627921327
+    },
+    {
+      "metric": "reviewer success_rate",
+      "key": "pi.by_role.reviewer.success_rate",
+      "locked": 0.0,
+      "unlocked": 0.0,
+      "delta_pct": null
+    },
+    {
+      "metric": "reviewer median_wall_s",
+      "key": "pi.by_role.reviewer.median_wall_s",
+      "locked": 17.7933151495,
+      "unlocked": 16.5032733935,
+      "delta_pct": -7.250148413384627
+    },
+    {
+      "metric": "reviewer median_out_tps",
+      "key": "pi.by_role.reviewer.median_out_tps",
+      "locked": 17.905704780530026,
+      "unlocked": 18.70526084211188,
+      "delta_pct": 4.465370513933972
+    },
+    {
+      "metric": "reviewer board_wh_per_task",
+      "key": "pi.by_role.reviewer.board_wh_per_task",
+      "locked": 0.4396200050060854,
+      "unlocked": 0.3522294680772507,
+      "delta_pct": -19.878653367383727
+    },
+    {
+      "metric": "testwriter success_rate",
+      "key": "pi.by_role.testwriter.success_rate",
+      "locked": 0.0,
+      "unlocked": 0.0,
+      "delta_pct": null
+    },
+    {
+      "metric": "testwriter median_wall_s",
+      "key": "pi.by_role.testwriter.median_wall_s",
+      "locked": 501.354270166,
+      "unlocked": 480.27335414,
+      "delta_pct": -4.20479435011495
+    },
+    {
+      "metric": "testwriter median_out_tps",
+      "key": "pi.by_role.testwriter.median_out_tps",
+      "locked": 16.906774419615186,
+      "unlocked": 16.039175107509553,
+      "delta_pct": -5.131666695091444
+    },
+    {
+      "metric": "testwriter board_wh_per_task",
+      "key": "pi.by_role.testwriter.board_wh_per_task",
+      "locked": 6.4247891875293535,
+      "unlocked": 4.647647060087255,
+      "delta_pct": -27.660707232099806
+    }
+  ]
+}

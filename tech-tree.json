@@ -1,0 +1,1103 @@
+{
+ "name": "RTX 3070 tech tree",
+ "version": "1.1.0",
+ "updated": "2026-10-25",
+ "scope": "Get the most real work from one RTX 3070 8 GB (LHR included) for local LLMs and agent work.",
+ "results_dir": "results/",
+ "status_values": {
+  "measured": "Done. result holds measured values with source paths.",
+  "in_progress": "The lab runs it now.",
+  "paused": "Started, then stopped. Not measured, so dependents wait. It restarts from scratch on the next run.",
+  "queued": "Ready, or ready once its prereqs are measured.",
+  "needs_owner": "Needs the owner present or the owner's go. The runner skips it.",
+  "blocked": "A prereq is needs_owner or blocked. The runner skips it."
+ },
+ "status_aliases": {
+  "needs-owner": "needs_owner",
+  "running": "in_progress",
+  "in-progress": "in_progress",
+  "done": "measured",
+  "interrupted": "paused"
+ },
+ "rules": [
+  "Run a node only when every prereq has status measured.",
+  "Skip needs_owner and blocked nodes.",
+  "Pick the first runnable node in next_order.",
+  "Each result entry has metric, value, source (a path relative to the repo root) and an optional note.",
+  "Label every number with n, warm or cold, and its confounds. Never invent a number."
+ ],
+ "safety": {
+  "applies_to": "the test machine",
+  "limits": [
+   "Do not change the power limit, clocks or undervolt.",
+   "Do not reboot, shut down or sleep the machine while unlocked.",
+   "Do not write firmware, VBIOS, ESP, BCD or NVRAM.",
+   "A WSL2 memory-cap change needs the owner's go.",
+   "Cold-boot arms need the owner present.",
+   "Stop if the screen blanks under load and log power and temperature."
+  ]
+ },
+ "measurement_rules": [
+  "State n for every number. llama-bench uses -r 5 and 3 reps where possible.",
+  "Label warm or cold. All results in v1.1.0 are warm.",
+  "Keep the display on the integrated GPU for A/B runs, or label the confound.",
+  "Report pass rates with 95% confidence intervals.",
+  "A target is a goal, not a result."
+ ],
+ "baseline": {
+  "label": "unlocked agent bench, partial offload, warm",
+  "passes": "3 of 36",
+  "passes_per_hour": 1.716,
+  "median_out_tps": 18.22,
+  "source": "results/agent-bench/unlocked/summary.json",
+  "verified": true
+ },
+ "tiers": [
+  {
+   "id": "foundation",
+   "title": "Foundation",
+   "goal": "Know the stack, measure it the same way every time, and confirm the FP32-accumulate unlock."
+  },
+  {
+   "id": "inference",
+   "title": "Inference",
+   "goal": "Get the most tokens per second from 8 GB of VRAM."
+  },
+  {
+   "id": "agent",
+   "title": "Agent reliability",
+   "goal": "Make more agent tasks pass on the same model and card."
+  },
+  {
+   "id": "throughput",
+   "title": "Throughput",
+   "goal": "Keep the card busy while agents wait on builds and tests."
+  },
+  {
+   "id": "efficiency",
+   "title": "Efficiency",
+   "goal": "Measure energy per passing task. Do not tune power."
+  },
+  {
+   "id": "capstone",
+   "title": "Capstones",
+   "goal": "Combine the wins into a bigger model class and more useful work per Wh."
+  }
+ ],
+ "nodes": [
+  {
+   "id": "stack-baseline",
+   "tier": "foundation",
+   "title": "Driver, CUDA and WSL2 baseline",
+   "goal": "Record the exact software and card state so that every other result can be replicated.",
+   "prereqs": [],
+   "unlocks": [
+    "harness",
+    "unlock-fp32acc",
+    "ram-wsl-check",
+    "full-offload"
+   ],
+   "test": "Read-only queries: nvidia-smi (name, driver, power limit, VRAM), llama.cpp build number, model file. Record them in every session.",
+   "metric": "Recorded fields present in each session meta file (yes/no).",
+   "target": "Target: every session records driver, llama.cpp build, model, power limit and display GPU.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "driver",
+     "value": "621.01",
+     "source": "results/agent-bench/unlocked/meta.json"
+    },
+    {
+     "metric": "power limit",
+     "value": "220 W, not changed",
+     "source": "results/agent-bench/unlocked/meta.json"
+    },
+    {
+     "metric": "llama.cpp build",
+     "value": "b11734, CUDA backend",
+     "source": "results/llama-bench.md"
+    },
+    {
+     "metric": "model",
+     "value": "Qwen3-8B Q4_K_M (4.68 GiB)",
+     "source": "results/llama-bench.md"
+    },
+    {
+     "metric": "runtime",
+     "value": "llama.cpp in WSL2",
+     "source": "results/pause-bench.md"
+    }
+   ],
+   "confounds": [
+    "The desktop display moved from the RTX card to the integrated GPU between the locked and unlocked sessions. This frees VRAM and idles the card."
+   ],
+   "safety_notes": [
+    "Read-only queries only. Do not change the power limit or clocks."
+   ]
+  },
+  {
+   "id": "harness",
+   "tier": "foundation",
+   "title": "Measurement harness",
+   "goal": "Run the same benchmarks the same way, with n, variance and warm or cold state labeled on every number.",
+   "prereqs": [
+    "stack-baseline"
+   ],
+   "unlocks": [
+    "unlock-fp32acc",
+    "cold-boot",
+    "locked-ab",
+    "kv-cache-types",
+    "flash-attention",
+    "full-offload",
+    "failure-sort",
+    "power-log"
+   ],
+   "test": "llama-bench with -r 5 and 3 reps for raw speed. A 12-task agent coding bench (6 roles x 2 tasks, hidden checks) at n=3 per task (36 runs). Board power sampled every 5 s. Summaries with 95% confidence intervals.",
+   "metric": "Pass rate with 95% CI, passes per hour, median output tok/s, board Wh per task, run-to-run spread.",
+   "target": "Target: every result states n, warm or cold, and its confounds.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "agent bench baseline (unlocked)",
+     "value": "3 of 36 passes, 8.3%, 95% CI 2.9-21.8%",
+     "source": "results/agent-bench/unlocked/summary.json"
+    },
+    {
+     "metric": "agent bench passes per hour (unlocked, serial)",
+     "value": 1.716,
+     "source": "results/agent-bench/unlocked/summary.json"
+    },
+    {
+     "metric": "agent bench median output tok/s (unlocked)",
+     "value": 18.22,
+     "source": "results/agent-bench/unlocked/summary.json"
+    },
+    {
+     "metric": "agent bench baseline (locked)",
+     "value": "2 of 24 passes, 8.3%, 95% CI 2.3-25.9%",
+     "source": "results/agent-bench/locked/summary.json"
+    }
+   ],
+   "confounds": [
+    "All runs so far are warm. The cold-start fields are null.",
+    "The agent is not deterministic. n=3 per task is small.",
+    "The locked arm has n=2 per task and the unlocked arm has n=3 per task."
+   ],
+   "safety_notes": [
+    "The harness only reads GPU state."
+   ]
+  },
+  {
+   "id": "unlock-fp32acc",
+   "tier": "foundation",
+   "title": "FP32-accumulate unlock",
+   "goal": "Confirm that FP16 tensor-core math with FP32 accumulate runs at the full rate.",
+   "prereqs": [
+    "stack-baseline",
+    "harness"
+   ],
+   "unlocks": [
+    "cold-boot",
+    "locked-ab",
+    "fp16-workloads"
+   ],
+   "test": "MMA microbenchmark: FP16 inputs with FP32 accumulate vs FP16 accumulate. Then a GEMM diagnostic at model-shaped sizes.",
+   "metric": "mma ratio = FP32-acc rate / FP16-acc rate. Locked GeForce Ampere is near 0.5. Unlocked is near 1.0.",
+   "target": "Target: ratio 1.0 in every unlocked session.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "mma ratio, locked",
+     "value": 0.507,
+     "source": "results/mma_rate-locked.json"
+    },
+    {
+     "metric": "mma ratio, unlocked",
+     "value": 1.0,
+     "source": "results/mma_rate-unlocked.json"
+    },
+    {
+     "metric": "mma ratio, unlocked replication",
+     "value": 1.0,
+     "source": "results/agent-bench/unlocked/mma.json"
+    },
+    {
+     "metric": "GEMM FP32acc/FP16acc, sq4096 (unlocked, median of 3)",
+     "value": 1.014,
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "GEMM FP32acc/FP16acc, pp512_qkv (unlocked, median of 3)",
+     "value": 0.942,
+     "source": "results/unlocked-replication.md"
+    }
+   ],
+   "confounds": [
+    "No locked GEMM baseline exists.",
+    "The mma test is a per-warp synthetic test, not dense GEMM."
+   ],
+   "safety_notes": [
+    "No firmware, ESP, BCD or NVRAM writes from the lab.",
+    "No reboot or sleep while unlocked."
+   ]
+  },
+  {
+   "id": "ram-wsl-check",
+   "tier": "foundation",
+   "title": "System RAM and WSL2 memory limit",
+   "goal": "Find how much system RAM the WSL2 VM can use, and the longest context the jobs need.",
+   "prereqs": [
+    "stack-baseline"
+   ],
+   "unlocks": [
+    "moe-offload"
+   ],
+   "test": "Read-only: free -g and nproc inside WSL2. Read the context percentiles from existing agent runs.",
+   "metric": "Total RAM, WSL2 memory limit, free RAM with the lab server loaded, p95 of per-run max context.",
+   "target": "Target: values recorded. The MoE node needs this result before the owner decides on the memory cap.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "Windows physical RAM",
+     "value": "32 GiB",
+     "source": "results/ram-wsl-check.md"
+    },
+    {
+     "metric": "WSL2 memory limit",
+     "value": "15.5 GiB (default 50% cap, no memory= line in .wslconfig)",
+     "source": "results/ram-wsl-check.md"
+    },
+    {
+     "metric": "WSL2 available RAM with the lab running",
+     "value": "11.9 GiB",
+     "source": "results/ram-wsl-check.md"
+    },
+    {
+     "metric": "WSL2 swap",
+     "value": "4.0 GiB, 0 used",
+     "source": "results/ram-wsl-check.md"
+    },
+    {
+     "metric": "WSL2 processors",
+     "value": "8 (.wslconfig processors=8)",
+     "source": "results/ram-wsl-check.md"
+    },
+    {
+     "metric": "p95 of per-run max context",
+     "value": "pending, from full-offload",
+     "source": "results/ram-wsl-check.md"
+    }
+   ],
+   "confounds": [
+    "Measured while the full-offload bench ran. Available RAM changes with load.",
+    "WSL2 caps memory at 50% of Windows RAM by default (Microsoft WSL config docs)."
+   ],
+   "safety_notes": [
+    "Read-only. Do not edit .wslconfig. That needs the owner's go."
+   ],
+   "results_path": "results/ram-wsl-check.md"
+  },
+  {
+   "id": "cold-boot",
+   "tier": "foundation",
+   "title": "Cold-boot arms",
+   "goal": "Measure power-on to first token and power-on to first passing task, for unlocked and locked boots.",
+   "prereqs": [
+    "harness",
+    "unlock-fp32acc"
+   ],
+   "unlocks": [],
+   "test": "The owner cold-boots the machine and marks power-on and unlock-done times. The harness records boot, WSL up, server start, model ready, first token, warm, first pass.",
+   "metric": "Time to first token (s), time to first passing task (s), per arm.",
+   "target": "Target: both arms measured with n of at least 3 boots each.",
+   "status": "needs_owner",
+   "result": null,
+   "confounds": [
+    "Display GPU must be the same in both arms."
+   ],
+   "safety_notes": [
+    "Cold-boot arms need the owner present.",
+    "No unattended unlock boots."
+   ]
+  },
+  {
+   "id": "locked-ab",
+   "tier": "foundation",
+   "title": "Clean locked vs unlocked A/B",
+   "goal": "Remove the display confound from the unlock comparison.",
+   "prereqs": [
+    "harness",
+    "unlock-fp32acc"
+   ],
+   "unlocks": [],
+   "test": "A locked cold boot with the display on the integrated GPU. Run the same llama-bench, GEMM, fa-off and agent bench as the unlocked arm.",
+   "metric": "Delta per metric, locked vs unlocked, same display state.",
+   "target": "Target: every unlock claim has a same-display locked baseline.",
+   "status": "needs_owner",
+   "result": null,
+   "confounds": [
+    "Today the locked runs had the display on the RTX card (about 850 MiB more VRAM in use)."
+   ],
+   "safety_notes": [
+    "A locked arm needs a cold boot without the unlock, with the owner present."
+   ]
+  },
+  {
+   "id": "kv-cache-types",
+   "tier": "inference",
+   "title": "KV cache types",
+   "goal": "Pick the KV cache type pair that is fast and fits.",
+   "prereqs": [
+    "harness"
+   ],
+   "unlocks": [
+    "full-offload",
+    "moe-offload"
+   ],
+   "test": "Same 15,414-token prompt at 64K context, -ngl 30, 3 reps per K/V pair. Log the flash-attention fallback flag and peak VRAM.",
+   "metric": "Prefill tok/s, decode tok/s, peak VRAM MiB, fallback flag.",
+   "target": "Target: no fallback, and the fastest decode that fits.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "q4_0/q4_0",
+     "value": "prefill 1322-1350, decode 11.5-12.1 tok/s, 6393 MiB, no fallback",
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "q8_0/q8_0",
+     "value": "prefill 1277-1308, decode 9.6-10.2 tok/s, 7933 MiB, no fallback",
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "q8_0/q4_1",
+     "value": "prefill 1294-1311, decode 9.4-9.7 tok/s, 7473 MiB, fallback",
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "q8_0/q4_0",
+     "value": "prefill 1233-1330, decode 9.0-10.0 tok/s, 7355 MiB, fallback",
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "f16/f16",
+     "value": "prefill 92-95, decode 3.98-4.05 tok/s, 7935 MiB, no fallback",
+     "source": "results/unlocked-replication.md"
+    }
+   ],
+   "confounds": [
+    "Measured at partial offload (-ngl 30), not full offload.",
+    "Mixed K/V types hit the flash-attention fallback. They decoded slowest of the quantized pairs.",
+    "f16/f16 sits at the 8 GB limit. The collapse is probably memory spill. This is not verified."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "flash-attention",
+   "tier": "inference",
+   "title": "Flash attention",
+   "goal": "Confirm flash attention is on and measure what it gives at long prompts.",
+   "prereqs": [
+    "harness"
+   ],
+   "unlocks": [
+    "full-offload"
+   ],
+   "test": "llama-bench -ngl 99, -fa 1 vs -fa 0, pp512/pp4096/pp16384.",
+   "metric": "Prefill tok/s per prompt length.",
+   "target": "Target: flash attention on for every config. Re-check at each new build.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "pp16384, fa 1 (unlocked replication)",
+     "value": 2492.6,
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "pp16384, fa 0 (unlocked, 1 run x -r 5)",
+     "value": 185.0,
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "pp4096, fa 1 / fa 0",
+     "value": "2963.7 / 1976.4",
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "pp512, fa 1 / fa 0",
+     "value": "2963.8 / 2726.3",
+     "source": "results/unlocked-replication.md"
+    }
+   ],
+   "confounds": [
+    "No locked fa 0 baseline.",
+    "fa 0 is 1 run x -r 5. fa 1 is the mean of 3 reps x -r 5."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "full-offload",
+   "tier": "inference",
+   "title": "Full GPU offload",
+   "goal": "Put every layer on the card at a context sized to real use.",
+   "prereqs": [
+    "stack-baseline",
+    "harness",
+    "kv-cache-types",
+    "flash-attention"
+   ],
+   "unlocks": [
+    "quant-choice",
+    "spec-ngram",
+    "dense-newer",
+    "moe-offload",
+    "test-gate",
+    "tool-call-format",
+    "sampler",
+    "thinking-budget",
+    "loop-guard",
+    "parallel-slots",
+    "wh-per-pass"
+   ],
+   "test": "llama-server -ngl 99 -fa on, context at p95 of real use (max 32k), KV q8_0/q8_0 (q4_0/q4_0 if it does not fit). Then the 36-run agent bench with board power logged from the first task.",
+   "metric": "Agent median output tok/s, passes per hour, pass rate, Wh per pass, out-of-memory count.",
+   "target": "Target: agent decode at least 40 tok/s, passes per hour at least 1.5x baseline, pass rate not below 3 of 36, zero out-of-memory errors.",
+   "status": "paused",
+   "result": [
+    {
+     "metric": "partial run (not a result)",
+     "value": "2 of 14 passes before the pause; config -ngl 99, ctx 8192, KV q8_0/q8_0, FA on. Restarts from scratch on resume.",
+     "source": "results/full-offload.md"
+    },
+    {
+     "metric": "llama-bench tg128 at -ngl 99 (unlocked replication, warm)",
+     "value": 73.8,
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "lab server load test at partial offload, gen tok/s, 3 reps (before this node)",
+     "value": "20.63 / 21.43 / 21.81",
+     "source": "results/unlocked-replication.md"
+    },
+    {
+     "metric": "agent bench median output tok/s at partial offload (before this node)",
+     "value": 18.22,
+     "source": "results/agent-bench/unlocked/summary.json"
+    },
+    {
+     "metric": "per-run max context, unlocked bench: p50 / p95 / max (tokens)",
+     "value": "2811.5 / 4396 / 6248",
+     "source": "results/agent-bench/unlocked/pi_results.jsonl",
+     "note": "computed from the max_ctx field of 36 runs"
+    }
+   ],
+   "confounds": [
+    "The partial run stopped at 14 of 36 runs. The pause confounds timing, so the node restarts from scratch.",
+    "The prior values are from before this node. They are not its result.",
+    "The max_ctx field may not equal the context the server needs. Check it against server logs."
+   ],
+   "safety_notes": [
+    "A server restart is not a reboot. It is allowed.",
+    "Stop if the screen blanks under load."
+   ],
+   "results_path": "results/full-offload.md"
+  },
+  {
+   "id": "quant-choice",
+   "tier": "inference",
+   "title": "Weight quant choice",
+   "goal": "Find the weight quant with the best passes per hour that fits at full offload.",
+   "prereqs": [
+    "full-offload"
+   ],
+   "unlocks": [],
+   "test": "Same model at Q4_K_M, IQ4_XS and Q5_K_M (if it fits). llama-bench, then the 36-run agent bench at the full-offload settings.",
+   "metric": "Pass rate, passes per hour, decode tok/s, VRAM headroom.",
+   "target": "Target: pick the quant with the most passes per hour. No out-of-memory errors.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "A larger quant cuts the room for KV cache and parallel slots."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "spec-ngram",
+   "tier": "inference",
+   "title": "Speculative decoding: n-gram",
+   "goal": "Speed up decode on edit-heavy roles with no extra VRAM.",
+   "prereqs": [
+    "full-offload"
+   ],
+   "unlocks": [
+    "spec-draft"
+   ],
+   "test": "Turn on the n-gram lookup mode of your llama.cpp build (check llama-server --help). Run the token bench and the 36-run agent bench.",
+   "metric": "Agent decode tok/s, draft acceptance rate, pass rate, Wh per pass.",
+   "target": "Target: agent decode at least 1.3x with the same pass rate.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Gains drop when the model thinks before it writes code (Fronde report)."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "spec-draft",
+   "tier": "inference",
+   "title": "Speculative decoding: draft model",
+   "goal": "Speed up code and JSON output with a small draft model.",
+   "prereqs": [
+    "spec-ngram"
+   ],
+   "unlocks": [],
+   "test": "llama-server -md Qwen3-0.6B-Q8_0.gguf with a draft length of 8-12, if VRAM allows at full offload.",
+   "metric": "Agent decode tok/s, acceptance rate, VRAM, pass rate.",
+   "target": "Target: agent decode at least 1.3x over n-gram mode or over no speculation.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The draft model takes VRAM from the KV cache."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "dense-newer",
+   "tier": "inference",
+   "title": "Newer small dense model at full offload",
+   "goal": "Test whether a newer small model (Qwen3.5-9B) passes more tasks at a similar speed.",
+   "prereqs": [
+    "full-offload"
+   ],
+   "unlocks": [],
+   "test": "Qwen3.5-9B Q4_K_M at -ngl 99. Check the chat and tool-call template. llama-bench pp512/pp4096/tg128, then the 36-run agent bench.",
+   "metric": "Pass rate, decode tok/s, prefill tok/s.",
+   "target": "Target: at least 10 of 36 passes at 40 tok/s or more.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Its hybrid layers may lack a fast CUDA prefill path in this build (llama.cpp issue #22967)."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "moe-offload",
+   "tier": "inference",
+   "title": "MoE expert offload (Qwen3.6-35B-A3B)",
+   "goal": "Run a 35B-total, 3B-active MoE model with some experts in system RAM.",
+   "prereqs": [
+    "ram-wsl-check",
+    "kv-cache-types",
+    "full-offload"
+   ],
+   "unlocks": [
+    "bigger-class"
+   ],
+   "test": "Qwen3.6-35B-A3B (UD-IQ4_XS GGUF). llama-bench at --n-cpu-moe 24, 27 and 30. Then the 36-run agent bench.",
+   "metric": "Decode and prefill tok/s, pass rate, RAM use, Wh per pass.",
+   "target": "Target: at least 10 of 36 passes and agent decode at least 18 tok/s.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "CPU-side experts compete with build and test jobs for the CPU.",
+    "Public speed reports come from other machines with different RAM."
+   ],
+   "safety_notes": [
+    "Needs a larger WSL2 memory cap. A WSL2 restart stops lab services.",
+    "Do not reboot Windows for this change.",
+    "Check the mma ratio after any WSL2 restart."
+   ],
+   "public_note": "needs a larger WSL2 memory cap"
+  },
+  {
+   "id": "fp16-workloads",
+   "tier": "inference",
+   "title": "Workloads that use the unlocked math",
+   "goal": "Find end-to-end jobs that gain from FP32-accumulate FP16/BF16 math.",
+   "prereqs": [
+    "unlock-fp32acc"
+   ],
+   "unlocks": [],
+   "test": "Unlocked arm: PyTorch fp16/bf16 matmul TFLOPS, an image-generation it/s run, and a BF16 vs F16 small-model llama-bench pp512/pp2048.",
+   "metric": "End-to-end speed per workload. Later: ratio vs the clean locked arm.",
+   "target": "Target: at least 1.4x on one end-to-end FP16/BF16 workload vs the locked arm.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The ratio needs the locked-ab node. Until then, report unlocked numbers only.",
+    "The 4-bit chat model barely uses this math path."
+   ],
+   "safety_notes": [
+    "No power or clock changes."
+   ]
+  },
+  {
+   "id": "failure-sort",
+   "tier": "agent",
+   "title": "Failure sort",
+   "goal": "Count why agent tasks fail, so that each fix targets a real cause.",
+   "prereqs": [
+    "harness"
+   ],
+   "unlocks": [
+    "test-gate",
+    "tool-call-format",
+    "sampler",
+    "thinking-budget",
+    "loop-guard"
+   ],
+   "test": "Group all existing agent runs by failure cause, tool-call errors, loop events, output-limit hits and false 'done'.",
+   "metric": "Failures per cause, tool-call error share, runs with loops.",
+   "target": "Target: a ranked cause list that sets the order of the agent fixes.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "runs / passes (locked 24 + unlocked 36)",
+     "value": "60 / 5",
+     "source": "results/agent-bench/locked/pi_results.jsonl ; results/agent-bench/unlocked/pi_results.jsonl"
+    },
+    {
+     "metric": "failures by cause (55 failures)",
+     "value": "gofmt 17, review 10, timeout 8, rubric 6, build 6, tests 4, vet 2, missing_output 2",
+     "source": "results/agent-bench/locked/pi_results.jsonl ; results/agent-bench/unlocked/pi_results.jsonl"
+    },
+    {
+     "metric": "tool-call errors / tool calls",
+     "value": "311 / 661",
+     "source": "results/agent-bench/locked/pi_results.jsonl ; results/agent-bench/unlocked/pi_results.jsonl"
+    },
+    {
+     "metric": "runs with at least one loop event (non-empty loops field)",
+     "value": "39 of 60 (locked 16 of 24, unlocked 23 of 36); 0 passes among them",
+     "source": "results/agent-bench/locked/pi_results.jsonl ; results/agent-bench/unlocked/pi_results.jsonl"
+    },
+    {
+     "metric": "runs with false_done = true",
+     "value": "8 of 60 (locked 5, unlocked 3); all 8 failed",
+     "source": "results/agent-bench/locked/pi_results.jsonl ; results/agent-bench/unlocked/pi_results.jsonl"
+    },
+    {
+     "metric": "output-limit hits (sum of length_hits)",
+     "value": "20 hits in 18 runs (locked 9 in 7, unlocked 11 in 11)",
+     "source": "results/agent-bench/locked/pi_results.jsonl ; results/agent-bench/unlocked/pi_results.jsonl"
+    },
+    {
+     "metric": "passes by role",
+     "value": "planner (pm) 5 of 10; other five roles 0 of 50",
+     "source": "results/agent-bench/locked/pi_results.jsonl ; results/agent-bench/unlocked/pi_results.jsonl"
+    }
+   ],
+   "confounds": [
+    "First pass from result fields only. No transcript review yet.",
+    "gofmt, build and vet failures (25 of 55) are checks the agent can run itself before it says 'done'."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "test-gate",
+   "tier": "agent",
+   "title": "Test-gated done",
+   "goal": "Do not accept 'done' until format, vet, build and visible tests pass.",
+   "prereqs": [
+    "failure-sort",
+    "full-offload"
+   ],
+   "unlocks": [
+    "agent-stack",
+    "best-of-n"
+   ],
+   "test": "Before the agent can finish, run gofmt -l, go vet, go build and visible tests. On failure, return the output to the agent. 36-run agent bench.",
+   "metric": "Pass rate, gofmt/build/vet failure count, false 'done' count.",
+   "target": "Target: gofmt, build and vet failures cut by half or more. Pass rate up.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Never use the hidden checks as the gate."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "tool-call-format",
+   "tier": "agent",
+   "title": "Tool-call format",
+   "goal": "Cut tool-call errors with constrained output.",
+   "prereqs": [
+    "failure-sort",
+    "full-offload"
+   ],
+   "unlocks": [
+    "agent-stack"
+   ],
+   "test": "Constrain tool calls with a JSON schema or grammar in llama-server. 36-run agent bench.",
+   "metric": "Tool-call error share, pass rate.",
+   "target": "Target: tool-call errors cut by half.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Some errors are valid calls with bad arguments. A grammar does not fix those."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "sampler",
+   "tier": "agent",
+   "title": "Sampler settings",
+   "goal": "Use the model vendor's sampler for quantized models.",
+   "prereqs": [
+    "failure-sort",
+    "full-offload"
+   ],
+   "unlocks": [
+    "agent-stack"
+   ],
+   "test": "--temp 0.6 --top-p 0.95 --top-k 20 --presence-penalty 1.5 (Qwen3-8B GGUF model card). 36-run agent bench.",
+   "metric": "Pass rate, loop events, tool-call errors.",
+   "target": "Target: loop events cut by half with no drop in pass rate.",
+   "status": "queued",
+   "result": null,
+   "confounds": [],
+   "safety_notes": []
+  },
+  {
+   "id": "thinking-budget",
+   "tier": "agent",
+   "title": "Thinking budget",
+   "goal": "Stop runaway thinking and output-limit hits.",
+   "prereqs": [
+    "failure-sort",
+    "full-offload"
+   ],
+   "unlocks": [
+    "agent-stack"
+   ],
+   "test": "Set a thinking budget per role (--reasoning-budget in llama-server, or no thinking for edit roles). 36-run agent bench.",
+   "metric": "Output-limit hits, timeouts, pass rate, wall time.",
+   "target": "Target: zero output-limit hits. Timeouts cut by half.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Less thinking can lower pass rate on hard roles. Report per role."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "loop-guard",
+   "tier": "agent",
+   "title": "Loop guard",
+   "goal": "Stop the agent from repeating the same tool call.",
+   "prereqs": [
+    "failure-sort",
+    "full-offload"
+   ],
+   "unlocks": [
+    "agent-stack"
+   ],
+   "test": "After 3 identical tool calls, reset the turn with a short note to the agent. 36-run agent bench.",
+   "metric": "Loop events per run, pass rate, wall time.",
+   "target": "Target: loop events cut by half.",
+   "status": "queued",
+   "result": null,
+   "confounds": [],
+   "safety_notes": []
+  },
+  {
+   "id": "agent-stack",
+   "tier": "agent",
+   "title": "Stacked agent fixes on a held-out set",
+   "goal": "Combine the fixes that helped and check them on tasks that were not used to tune them.",
+   "prereqs": [
+    "test-gate",
+    "tool-call-format",
+    "sampler",
+    "thinking-budget",
+    "loop-guard"
+   ],
+   "unlocks": [
+    "bigger-class",
+    "useful-work-per-wh"
+   ],
+   "test": "Turn on all fixes that won. Run the 36-run bench and a held-out task set.",
+   "metric": "Pass rate on the tuned set and on the held-out set, reported apart.",
+   "target": "Target: at least 10 of 36 passes (one-sided Fisher p about 0.03 vs 3 of 36).",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Tuning on 12 tasks can overfit them."
+   ],
+   "safety_notes": []
+  },
+  {
+   "id": "parallel-slots",
+   "tier": "throughput",
+   "title": "Parallel slots",
+   "goal": "Serve 2-4 requests at once to fill idle GPU time.",
+   "prereqs": [
+    "full-offload"
+   ],
+   "unlocks": [
+    "agent-workers",
+    "best-of-n"
+   ],
+   "test": "llama-server --parallel 1, 2, 4 with total context = slots x per-slot context. Token bench at each setting.",
+   "metric": "Aggregate tok/s, per-request tok/s, aggregate tok/s per board W.",
+   "target": "Target: aggregate tok/s per board W at least 1.5x at 4 slots.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Half-full batches can be the worst case (public reports)."
+   ],
+   "safety_notes": [
+    "Log power and temperature. Stop on any screen blanking."
+   ]
+  },
+  {
+   "id": "agent-workers",
+   "tier": "throughput",
+   "title": "Concurrent agent workers",
+   "goal": "Run 2 agent jobs side by side.",
+   "prereqs": [
+    "parallel-slots"
+   ],
+   "unlocks": [],
+   "test": "Agent bench with 2 workers against a 2-slot server.",
+   "metric": "Passes per hour, pass rate, CPU load.",
+   "target": "Target: passes per hour at least 1.5x vs 1 worker.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Builds and tests compete for the CPU."
+   ],
+   "safety_notes": [
+    "Stop on any screen blanking."
+   ]
+  },
+  {
+   "id": "best-of-n",
+   "tier": "throughput",
+   "title": "Best-of-N with a visible-test selector",
+   "goal": "Turn spare capacity into more passes.",
+   "prereqs": [
+    "parallel-slots",
+    "test-gate"
+   ],
+   "unlocks": [
+    "useful-work-per-wh"
+   ],
+   "test": "Best-of-3 on implementer and debugger roles. Pick the attempt whose build, vet and visible tests pass. Never use the hidden check.",
+   "metric": "Role pass rate, passes per hour, Wh per pass.",
+   "target": "Target: implementer + debugger from 0 of 12 to at least 3 of 12.",
+   "status": "queued",
+   "result": null,
+   "confounds": [],
+   "safety_notes": []
+  },
+  {
+   "id": "power-log",
+   "tier": "efficiency",
+   "title": "Board power logging",
+   "goal": "Log board power for every task with full coverage.",
+   "prereqs": [
+    "harness"
+   ],
+   "unlocks": [
+    "wh-per-pass"
+   ],
+   "test": "nvidia-smi power.draw at 5 s, read-only, started before the first task.",
+   "metric": "Board Wh per task, coverage share of tasks with power data.",
+   "target": "Target: 100% of tasks covered.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "board Wh per task, locked / unlocked",
+     "value": "2.99 / 2.53",
+     "source": "results/agent-bench/compare.json"
+    },
+    {
+     "metric": "board Wh per pass, locked",
+     "value": 35.88,
+     "source": "results/agent-bench/compare.json"
+    },
+    {
+     "metric": "board W mean during agent bench, locked",
+     "value": 56.43,
+     "source": "results/agent-bench/compare.json"
+    },
+    {
+     "metric": "board peak W under llama load (pause bench)",
+     "value": 174.8,
+     "source": "results/pause-bench.md"
+    }
+   ],
+   "confounds": [
+    "Unlocked power data starts after the first tasks. Unlocked Wh per pass is null.",
+    "Board power only. The rest of the PC is not measured."
+   ],
+   "safety_notes": [
+    "Read-only power queries. No power-limit changes."
+   ]
+  },
+  {
+   "id": "wh-per-pass",
+   "tier": "efficiency",
+   "title": "Wh per passing task",
+   "goal": "Report energy per passing task for every config.",
+   "prereqs": [
+    "power-log",
+    "full-offload"
+   ],
+   "unlocks": [
+    "useful-work-per-wh"
+   ],
+   "test": "Every agent bench reports board Wh per pass and tok/s per W. Add wall-meter data if a plug meter is fitted.",
+   "metric": "Board Wh per pass (and wall Wh per pass when available).",
+   "target": "Target: Wh per pass at least 30% lower than the locked baseline after full offload.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Few passes make Wh per pass noisy. Report the CI of the pass count."
+   ],
+   "safety_notes": [
+    "Power-limit, clock and undervolt changes are off-limits."
+   ]
+  },
+  {
+   "id": "bigger-class",
+   "tier": "capstone",
+   "title": "Bigger model class on 8 GB",
+   "goal": "Run a 35B-class model on 8 GB that beats the 8B baseline on passes per hour.",
+   "prereqs": [
+    "moe-offload",
+    "agent-stack"
+   ],
+   "unlocks": [],
+   "test": "Best MoE settings plus the stacked agent fixes. 36-run bench and held-out set.",
+   "metric": "Pass rate, passes per hour, Wh per pass vs the 8B stack.",
+   "target": "Target: more passes per hour than the best 8B stack.",
+   "status": "queued",
+   "result": null,
+   "confounds": [],
+   "safety_notes": [
+    "Waits on moe-offload."
+   ]
+  },
+  {
+   "id": "useful-work-per-wh",
+   "tier": "capstone",
+   "title": "Self-funding throughput: useful work per Wh",
+   "goal": "Find the config with the most passing tasks per Wh and per hour on one card.",
+   "prereqs": [
+    "wh-per-pass",
+    "best-of-n",
+    "agent-stack"
+   ],
+   "unlocks": [],
+   "test": "Combine the best inference, agent and throughput settings. Run a long agent bench with full power logs.",
+   "metric": "Passing tasks per Wh, passing tasks per hour.",
+   "target": "Target: passing tasks per Wh at least 2x the locked baseline.",
+   "status": "queued",
+   "result": null,
+   "confounds": [],
+   "safety_notes": [
+    "No power changes."
+   ]
+  }
+ ],
+ "next_order": [
+  {
+   "rank": 1,
+   "id": "full-offload",
+   "reason": "Paused after 14 of 36 runs. It restarts from scratch on the next run and gates 17 nodes. Agent decode is 18.22 tok/s at partial offload. llama-bench tg128 at full offload is 73.80 tok/s."
+  },
+  {
+   "rank": 2,
+   "id": "test-gate",
+   "reason": "gofmt, build and vet cause 25 of 55 failures. A gate before 'done' targets them directly."
+  },
+  {
+   "rank": 3,
+   "id": "tool-call-format",
+   "reason": "311 of 661 tool calls failed. This is the next largest fixable cause."
+  },
+  {
+   "rank": 4,
+   "id": "loop-guard",
+   "reason": "39 of 60 runs had a loop event, and none of them passed."
+  },
+  {
+   "rank": 5,
+   "id": "sampler",
+   "reason": "Vendor sampler for quantized Qwen3. One flag change."
+  },
+  {
+   "rank": 6,
+   "id": "thinking-budget",
+   "reason": "Targets 20 output-limit hits and 8 timeouts."
+  },
+  {
+   "rank": 7,
+   "id": "moe-offload",
+   "reason": "Needs a larger WSL2 memory cap. Runs after the loop fixes so the 35B model is tested with them. 11.9 GiB is available at the default cap, which is marginal."
+  },
+  {
+   "rank": 8,
+   "id": "wh-per-pass",
+   "reason": "Free with each bench once power logging starts before task 1."
+  },
+  {
+   "rank": 9,
+   "id": "parallel-slots",
+   "reason": "Mean board power was 56.43 W of a 220 W limit during the agent bench, so the card has spare capacity."
+  },
+  {
+   "rank": 10,
+   "id": "agent-stack",
+   "reason": "Confirms the agent fixes on a held-out set."
+  },
+  {
+   "rank": 11,
+   "id": "bigger-class",
+   "reason": "Capstone. Needs moe-offload and agent-stack measured."
+  },
+  {
+   "rank": 12,
+   "id": "best-of-n",
+   "reason": "Uses spare slots plus the test gate to lift the 0-pass roles."
+  },
+  {
+   "rank": 13,
+   "id": "agent-workers",
+   "reason": "More jobs per hour if the CPU keeps up."
+  },
+  {
+   "rank": 14,
+   "id": "spec-ngram",
+   "reason": "No VRAM cost. Helps code and JSON output."
+  },
+  {
+   "rank": 15,
+   "id": "spec-draft",
+   "reason": "Bigger speed-up, but it costs VRAM."
+  },
+  {
+   "rank": 16,
+   "id": "dense-newer",
+   "reason": "A newer small model may pass more tasks at full offload."
+  },
+  {
+   "rank": 17,
+   "id": "quant-choice",
+   "reason": "Small expected gain. Run after the agent fixes settle."
+  },
+  {
+   "rank": 18,
+   "id": "fp16-workloads",
+   "reason": "The only place the unlock pays. Unlocked-only numbers until locked-ab runs."
+  },
+  {
+   "rank": 19,
+   "id": "useful-work-per-wh",
+   "reason": "Capstone. Runs when its prereqs are measured."
+  }
+ ]
+}
