@@ -1,8 +1,8 @@
 # RTX 3070 tech tree
 
-Version 1.1.0 (public copy). Updated 2026-10-25.
+Version 1.2.0. Updated 2026-10-26.
 
-This tree shows how to get the most real work from one RTX 3070 with 8 GB of VRAM. LHR cards are included. The work is local LLM inference and coding agents. Each node is one experiment. A node runs only when all of its prereqs are measured. The machine-readable form is [tech-tree.json](tech-tree.json).
+This tree shows how to get the most real work from one RTX 3070 with 8 GB of VRAM. LHR cards are included. The work is local LLM inference and coding agents. Each node is one experiment. A node runs only when all of its prereqs are measured. The machine-readable form is [`tech-tree.json`](tech-tree.json).
 
 All numbers in this file come from one test machine. All runs are warm, not cold boot. The sample sizes are small. Each measured value names its source file. A value marked "Target" is a goal. It is not a result.
 
@@ -10,15 +10,15 @@ All numbers in this file come from one test machine. All runs are warm, not cold
 
 | status | nodes |
 |---|---:|
-| measured | 8 |
-| in progress | 0 |
-| paused | 1 |
-| queued | 18 |
+| measured | 10 |
+| in progress | 1 |
+| paused | 0 |
+| queued | 16 |
 | needs owner | 2 |
 | blocked | 0 |
 | total | 29 |
 
-Status values: `measured` means done. `in_progress` means the lab runs it now. `paused` means the lab started it and stopped. Its dependents wait, and it restarts from scratch. `queued` means ready, or ready when its prereqs are measured. `needs_owner` (shown as "needs owner") means the owner must be present or must approve. `blocked` means a prereq is not available.
+Status values: `measured` means done. `in_progress` means the lab runs it now. `paused` means the lab started it and stopped. Its dependents wait, and it restarts from scratch. `queued` means ready, or ready when its prereqs are measured. `needs_owner` means the owner must be present or must give the go. `blocked` means a prereq is not available.
 
 ## Graph
 
@@ -35,7 +35,7 @@ flowchart LR
   subgraph inference["Inference"]
     kv_cache_types["KV cache types<br/>measured"]
     flash_attention["Flash attention<br/>measured"]
-    full_offload["Full GPU offload<br/>paused"]
+    full_offload["Full GPU offload<br/>measured"]
     quant_choice["Weight quant choice<br/>queued"]
     spec_ngram["Speculative decoding: n-gram<br/>queued"]
     spec_draft["Speculative decoding: draft model<br/>queued"]
@@ -45,10 +45,10 @@ flowchart LR
   end
   subgraph agent["Agent reliability"]
     failure_sort["Failure sort<br/>measured"]
-    test_gate["Test-gated done<br/>queued"]
-    tool_call_format["Tool-call format<br/>queued"]
+    test_gate["Test-gated done<br/>measured"]
+    tool_call_format["Edit-tool reliability<br/>in progress"]
     sampler["Sampler settings<br/>queued"]
-    thinking_budget["Thinking budget<br/>queued"]
+    thinking_budget["Planner-only thinking<br/>queued"]
     loop_guard["Loop guard<br/>queued"]
     agent_stack["Stacked agent fixes on a held-out set<br/>queued"]
   end
@@ -118,9 +118,9 @@ flowchart LR
   classDef measured fill:#0a0a0a,color:#f2f2f2,stroke:#0a0a0a
   classDef live fill:#f6e9dc,color:#9a4a06,stroke:#9a4a06
   classDef queued fill:#f2f2f2,color:#0a0a0a,stroke:#6b6b6b,stroke-dasharray:3 3
-  class stack_baseline,harness,unlock_fp32acc,ram_wsl_check,kv_cache_types,flash_attention,failure_sort,power_log measured
-  class cold_boot,locked_ab,full_offload live
-  class quant_choice,spec_ngram,spec_draft,dense_newer,moe_offload,fp16_workloads,test_gate,tool_call_format,sampler,thinking_budget,loop_guard,agent_stack,parallel_slots,agent_workers,best_of_n,wh_per_pass,bigger_class,useful_work_per_wh queued
+  class stack_baseline,harness,unlock_fp32acc,ram_wsl_check,kv_cache_types,flash_attention,full_offload,failure_sort,test_gate,power_log measured
+  class cold_boot,locked_ab,tool_call_format live
+  class quant_choice,spec_ngram,spec_draft,dense_newer,moe_offload,fp16_workloads,sampler,thinking_budget,loop_guard,agent_stack,parallel_slots,agent_workers,best_of_n,wh_per_pass,bigger_class,useful_work_per_wh queued
 ```
 
 ## Next order
@@ -129,25 +129,27 @@ The lab runs these nodes in this order. Dependency order comes first. Expected v
 
 | rank | node | reason |
 |---:|---|---|
-| 1 | `full-offload` | Paused after 14 of 36 runs. It restarts from scratch at lab resume and gates 17 nodes. Agent decode is 18.22 tok/s at partial offload. llama-bench tg128 at full offload is 73.80 tok/s. |
-| 2 | `test-gate` | gofmt, build and vet cause 25 of 55 failures. A gate before 'done' targets them directly. |
-| 3 | `tool-call-format` | 311 of 661 tool calls failed. This is the next largest fixable cause. |
-| 4 | `loop-guard` | 39 of 60 runs had a loop event, and none of them passed. |
-| 5 | `sampler` | Vendor sampler for quantized Qwen3. One flag change. |
-| 6 | `thinking-budget` | Targets 20 output-limit hits and 8 timeouts. |
-| 7 | `moe-offload` | Needs more system memory than WSL2 gets by default. 11.9 GiB is available at the default cap, which is marginal. Runs after the loop fixes so the 35B model is tested with them. |
-| 8 | `wh-per-pass` | Free with each bench once power logging starts before task 1. |
-| 9 | `parallel-slots` | Mean board power was 56.43 W of a 220 W limit during the agent bench, so the card has spare capacity. |
-| 10 | `agent-stack` | Confirms the agent fixes on a held-out set. |
-| 11 | `bigger-class` | Capstone. Needs moe-offload and agent-stack measured. |
-| 12 | `best-of-n` | Uses spare slots plus the test gate to lift the 0-pass roles. |
-| 13 | `agent-workers` | More jobs per hour if the CPU keeps up. |
-| 14 | `spec-ngram` | No VRAM cost. Helps code and JSON output. |
-| 15 | `spec-draft` | Bigger speed-up, but it costs VRAM. |
-| 16 | `dense-newer` | A newer small model may pass more tasks at full offload. |
-| 17 | `quant-choice` | Small expected gain. Run after the agent fixes settle. |
-| 18 | `fp16-workloads` | The only place the unlock pays. Unlocked-only numbers until locked-ab runs. |
-| 19 | `useful-work-per-wh` | Capstone. Runs when its prereqs are measured. |
+| 1 | `tool-call-format` | 52 of 363 tool calls in the full-offload run were edit mismatches. 0 calls were malformed, so the arm fixes the edit tool, not the call format. |
+| 2 | `loop-guard` | 39 of 60 runs had a loop event, and none of them passed. |
+| 3 | `sampler` | Qwen3 non-thinking sampler, two arms: A presence 0, then B presence 1.5. Per request, no server change. |
+| 4 | `thinking-budget` | Planner-only thinking: pm thinks with a 1024-token budget, other roles off. Runs after both sampler arms. |
+| 5 | `moe-offload` | Runs after the loop fixes so the 35B model is tested with them. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB). |
+| 6 | `wh-per-pass` | Free with each bench once power logging starts before task 1. |
+| 7 | `parallel-slots` | At partial offload, mean board power was 56.43 W of a 220 W limit. At full offload it is 203.1 W, so the gain from more slots is less sure. |
+| 8 | `agent-stack` | Confirms the agent fixes on a held-out set. |
+| 9 | `bigger-class` | Capstone. Needs moe-offload and agent-stack measured. |
+| 10 | `best-of-n` | Uses spare slots plus the test gate to lift the 0-pass roles. |
+| 11 | `agent-workers` | More jobs per hour if the CPU keeps up. |
+| 12 | `spec-ngram` | No VRAM cost. Helps code and JSON output. |
+| 13 | `spec-draft` | Bigger speed-up, but it costs VRAM. |
+| 14 | `dense-newer` | A newer small model may pass more tasks at full offload. |
+| 15 | `quant-choice` | Small expected gain. Run after the agent fixes settle. |
+| 16 | `fp16-workloads` | The only place the unlock pays. Unlocked-only numbers until locked-ab runs. |
+| 17 | `useful-work-per-wh` | Capstone. Runs when its prereqs are measured. |
+
+## Node notes
+
+- `moe-offload` (queued): The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB).
 
 ## Nodes
 
@@ -160,7 +162,7 @@ Know the stack, measure it the same way every time, and confirm the FP32-accumul
 | `stack-baseline` | Record the exact software and card state so that every other result can be replicated. | Read-only queries: nvidia-smi (name, driver, power limit, VRAM), llama.cpp build number, model file. Record them in every session. | Recorded fields present in each session meta file (yes/no). | Target: every session records driver, llama.cpp build, model, power limit and display GPU. | measured | driver: 621.01; power limit: 220 W, not changed; llama.cpp build: b11734, CUDA backend; model: Qwen3-8B Q4_K_M (4.68 GiB); runtime: llama.cpp in WSL2 |
 | `harness` | Run the same benchmarks the same way, with n, variance and warm or cold state labeled on every number. | llama-bench with -r 5 and 3 reps for raw speed. A 12-task agent coding bench (6 roles x 2 tasks, hidden checks) at n=3 per task (36 runs). Board power sampled every 5 s. Summaries with 95% confidence intervals. | Pass rate with 95% CI, passes per hour, median output tok/s, board Wh per task, run-to-run spread. | Target: every result states n, warm or cold, and its confounds. | measured | agent bench baseline (unlocked): 3 of 36 passes, 8.3%, 95% CI 2.9-21.8%; agent bench passes per hour (unlocked, serial): 1.716; agent bench median output tok/s (unlocked): 18.22; agent bench baseline (locked): 2 of 24 passes, 8.3%, 95% CI 2.3-25.9% |
 | `unlock-fp32acc` | Confirm that FP16 tensor-core math with FP32 accumulate runs at the full rate. | MMA microbenchmark: FP16 inputs with FP32 accumulate vs FP16 accumulate. Then a GEMM diagnostic at model-shaped sizes. | mma ratio = FP32-acc rate / FP16-acc rate. Locked GeForce Ampere is near 0.5. Unlocked is near 1.0. | Target: ratio 1.0 in every unlocked session. | measured | mma ratio, locked: 0.507; mma ratio, unlocked: 1.0; mma ratio, unlocked replication: 1.0; GEMM FP32acc/FP16acc, sq4096 (unlocked, median of 3): 1.014; GEMM FP32acc/FP16acc, pp512_qkv (unlocked, median of 3): 0.942 |
-| `ram-wsl-check` | Find how much system RAM the WSL2 VM can use, and the longest context the jobs need. | Read-only: free -g and nproc inside WSL2. Read the context percentiles from existing agent runs. | Total RAM, WSL2 memory limit, free RAM with the lab server loaded, p95 of per-run max context. | Target: values recorded. The MoE node needs this result. | measured | Windows physical RAM: 32 GiB; WSL2 memory limit: 15.5 GiB (default 50% cap, no memory= line in .wslconfig); WSL2 available RAM with the lab running: 11.9 GiB; WSL2 swap: 4.0 GiB, 0 used; WSL2 processors: 8 (.wslconfig processors=8); p95 of per-run max context: pending, from full-offload |
+| `ram-wsl-check` | Find how much system RAM the WSL2 VM can use, and the longest context the jobs need. | Read-only: free -g and nproc inside WSL2. Read the context percentiles from existing agent runs. | Total RAM, WSL2 memory limit, free RAM with the lab server loaded, p95 of per-run max context. | Target: values recorded. The MoE node needs this result before the owner decides on the memory cap. | measured | Windows physical RAM: 32 GiB; WSL2 memory limit: 15.5 GiB (default 50% cap, no memory= line in .wslconfig); WSL2 available RAM with the lab running: 11.9 GiB; WSL2 swap: 4.0 GiB, 0 used; WSL2 processors: 8 (.wslconfig processors=8); p95 of per-run max context: pending, from full-offload |
 | `cold-boot` | Measure power-on to first token and power-on to first passing task, for unlocked and locked boots. | The owner cold-boots the machine and marks power-on and unlock-done times. The harness records boot, WSL up, server start, model ready, first token, warm, first pass. | Time to first token (s), time to first passing task (s), per arm. | Target: both arms measured with n of at least 3 boots each. | needs owner | — |
 | `locked-ab` | Remove the display confound from the unlock comparison. | A locked cold boot with the display on the integrated GPU. Run the same llama-bench, GEMM, fa-off and agent bench as the unlocked arm. | Delta per metric, locked vs unlocked, same display state. | Target: every unlock claim has a same-display locked baseline. | needs owner | — |
 
@@ -172,7 +174,7 @@ Get the most tokens per second from 8 GB of VRAM.
 |---|---|---|---|---|---|---|
 | `kv-cache-types` | Pick the KV cache type pair that is fast and fits. | Same 15,414-token prompt at 64K context, -ngl 30, 3 reps per K/V pair. Log the flash-attention fallback flag and peak VRAM. | Prefill tok/s, decode tok/s, peak VRAM MiB, fallback flag. | Target: no fallback, and the fastest decode that fits. | measured | q4_0/q4_0: prefill 1322-1350, decode 11.5-12.1 tok/s, 6393 MiB, no fallback; q8_0/q8_0: prefill 1277-1308, decode 9.6-10.2 tok/s, 7933 MiB, no fallback; q8_0/q4_1: prefill 1294-1311, decode 9.4-9.7 tok/s, 7473 MiB, fallback; q8_0/q4_0: prefill 1233-1330, decode 9.0-10.0 tok/s, 7355 MiB, fallback; f16/f16: prefill 92-95, decode 3.98-4.05 tok/s, 7935 MiB, no fallback |
 | `flash-attention` | Confirm flash attention is on and measure what it gives at long prompts. | llama-bench -ngl 99, -fa 1 vs -fa 0, pp512/pp4096/pp16384. | Prefill tok/s per prompt length. | Target: flash attention on for every config. Re-check at each new build. | measured | pp16384, fa 1 (unlocked replication): 2492.6; pp16384, fa 0 (unlocked, 1 run x -r 5): 185.0; pp4096, fa 1 / fa 0: 2963.7 / 1976.4; pp512, fa 1 / fa 0: 2963.8 / 2726.3 |
-| `full-offload` | Put every layer on the card at a context sized to real use. | llama-server -ngl 99 -fa on, context at p95 of real use (max 32k), KV q8_0/q8_0 (q4_0/q4_0 if it does not fit). Then the 36-run agent bench with board power logged from the first task. | Agent median output tok/s, passes per hour, pass rate, Wh per pass, out-of-memory count. | Target: agent decode at least 40 tok/s, passes per hour at least 1.5x baseline, pass rate not below 3 of 36, zero out-of-memory errors. | paused | partial run (not a result): 2 of 14 passes before the pause; config -ngl 99, ctx 8192, KV q8_0/q8_0, FA on. Restarts from scratch on resume.; llama-bench tg128 at -ngl 99 (unlocked replication, warm): 73.8; lab server load test at partial offload, gen tok/s, 3 reps (before this node): 20.63 / 21.43 / 21.81; agent bench median output tok/s at partial offload (before this node): 18.22; per-run max context, unlocked bench: p50 / p95 / max (tokens): 2811.5 / 4396 / 6248 |
+| `full-offload` | Put every layer on the card at a context sized to real use. | llama-server -ngl 99 -fa on, context at p95 of real use (max 32k), KV q8_0/q8_0 (q4_0/q4_0 if it does not fit). Then the 36-run agent bench with board power logged from the first task. | Agent median output tok/s, passes per hour, pass rate, Wh per pass, out-of-memory count. | Target: agent decode at least 40 tok/s, passes per hour at least 1.5x baseline, pass rate not below 3 of 36, zero out-of-memory errors. | measured | verdict: Kept for throughput. All targets met: decode 57.54 tok/s vs 18.22 at partial offload (target 40), passes per hour 14.54 vs 1.716 (8.5x, target 1.5x), 6 of 36 passes (target: not below 3), zero OOM. The gain is in passes per hour and tok/s. The pass rate is not shown to be better: 6 of 36 vs 3 of 36 have overlapping 95% intervals. Full offload is the new current best config.; pass rate (36-run agent bench, card headless): 6 of 36 (16.7%, Wilson 95% CI 7.9% to 31.9%). Baseline at partial offload was 3 of 36 (8.3%, CI 2.9% to 21.8%). Intervals overlap, so no pass-rate gain is claimed.; passes per hour: 14.54 vs 1.716 at partial offload (8.5x); agent median output tok/s: 57.54; agent median wall s per task: 18.39 vs 73.4 at partial offload; board energy: 2.329 Wh per task (baseline 2.535), 13.97 Wh per pass, 1009 Wh per 1M output tokens, 203.1 W mean board power during the bench; out-of-memory count: 0; failure causes of the 30 non-passing runs: gofmt 9, tests 6, review 6, build 4, vet 3, rubric 1, missing output 1. gofmt, build and vet are 16 of 30.; context check (p95 basis): ctx 16384 covers per-run max context p95 6248 and observed max 10587; peak VRAM 6318 MiB of 8192, no context-exceeded errors in the server log.; server config in use: -ngl 99, ctx 16384, KV q8_0/q8_0 (confirmed from the running server args), FA on, 1 slot. VRAM 6312 MiB under load with the card headless.; reference only, discarded attempt: display on the 3070 (confounded, not a result): 36 of 36 runs completed, 4 passes. Agent median output 53.82 tok/s, 202.6 W mean board power. Discarded because the desktop was drawn on the 3070 (693 MiB, about 25% utilization, about 11 W at idle).; llama-bench tg128 at -ngl 99 (unlocked replication, warm): 73.8; lab server load test at partial offload, gen tok/s, 3 reps (before this node): 20.63 / 21.43 / 21.81; agent bench median output tok/s at partial offload (before this node): 18.22; per-run max context, unlocked bench: p50 / p95 / max (tokens): 2811.5 / 4396 / 6248; mma ratio FP32-acc / FP16-acc at bench start (unlock active): 1.0 |
 | `quant-choice` | Find the weight quant with the best passes per hour that fits at full offload. | Same model at Q4_K_M, IQ4_XS and Q5_K_M (if it fits). llama-bench, then the 36-run agent bench at the full-offload settings. | Pass rate, passes per hour, decode tok/s, VRAM headroom. | Target: pick the quant with the most passes per hour. No out-of-memory errors. | queued | — |
 | `spec-ngram` | Speed up decode on edit-heavy roles with no extra VRAM. | Turn on the n-gram lookup mode of your llama.cpp build (check llama-server --help). Run the token bench and the 36-run agent bench. | Agent decode tok/s, draft acceptance rate, pass rate, Wh per pass. | Target: agent decode at least 1.3x with the same pass rate. | queued | — |
 | `spec-draft` | Speed up code and JSON output with a small draft model. | llama-server -md Qwen3-0.6B-Q8_0.gguf with a draft length of 8-12, if VRAM allows at full offload. | Agent decode tok/s, acceptance rate, VRAM, pass rate. | Target: agent decode at least 1.3x over n-gram mode or over no speculation. | queued | — |
@@ -187,10 +189,10 @@ Make more agent tasks pass on the same model and card.
 | id | goal | test | metric | target | status | result |
 |---|---|---|---|---|---|---|
 | `failure-sort` | Count why agent tasks fail, so that each fix targets a real cause. | Group all existing agent runs by failure cause, tool-call errors, loop events, output-limit hits and false 'done'. | Failures per cause, tool-call error share, runs with loops. | Target: a ranked cause list that sets the order of the agent fixes. | measured | runs / passes (locked 24 + unlocked 36): 60 / 5; failures by cause (55 failures): gofmt 17, review 10, timeout 8, rubric 6, build 6, tests 4, vet 2, missing_output 2; tool-call errors / tool calls: 311 / 661; runs with at least one loop event (non-empty loops field): 39 of 60 (locked 16 of 24, unlocked 23 of 36); 0 passes among them; runs with false_done = true: 8 of 60 (locked 5, unlocked 3); all 8 failed; output-limit hits (sum of length_hits): 20 hits in 18 runs (locked 9 in 7, unlocked 11 in 11); passes by role: planner (pm) 5 of 10; other five roles 0 of 50 |
-| `test-gate` | Do not accept 'done' until format, vet, build and visible tests pass. | Before the agent can finish, run gofmt -l, go vet, go build and visible tests. On failure, return the output to the agent. 36-run agent bench. | Pass rate, gofmt/build/vet failure count, false 'done' count. | Target: gofmt, build and vet failures cut by half or more. Pass rate up. | queued | — |
-| `tool-call-format` | Cut tool-call errors with constrained output. | Constrain tool calls with a JSON schema or grammar in llama-server. 36-run agent bench. | Tool-call error share, pass rate. | Target: tool-call errors cut by half. | queued | — |
-| `sampler` | Use the model vendor's sampler for quantized models. | --temp 0.6 --top-p 0.95 --top-k 20 --presence-penalty 1.5 (Qwen3-8B GGUF model card). 36-run agent bench. | Pass rate, loop events, tool-call errors. | Target: loop events cut by half with no drop in pass rate. | queued | — |
-| `thinking-budget` | Stop runaway thinking and output-limit hits. | Set a thinking budget per role (--reasoning-budget in llama-server, or no thinking for edit roles). 36-run agent bench. | Output-limit hits, timeouts, pass rate, wall time. | Target: zero output-limit hits. Timeouts cut by half. | queued | — |
+| `test-gate` | Do not accept 'done' until format, vet, build and visible tests pass. | Before the agent can finish, run gofmt -l, go vet, go build and visible tests. On failure, return the output to the agent. 36-run agent bench. | Pass rate, passes per hour, gofmt/build/vet failure count, false 'done' count. | Target: gofmt, build and vet failures cut by half or more. Passes per hour above full-offload (14.54). | measured | verdict: Measured negative result. Reverted. 6 of 36 passes (same as full-offload), 9.64 passes per hour vs 14.54, 3.59 board Wh per task vs 2.33. gofmt, build and vet failures went from 16 to 15 of 30, so the gate did not cut them by half. It did not beat full-offload on passes per hour, so it is not carried into later nodes. The best config stays full-offload (base variant).; run: 36-run core agent bench (n=3) of variant testgate (attempts 2) at the full-offload config, card headless.; discarded attempt: wrong task set (not a result): The first run used the full task set (9 roles) because the core-set setting was missing from its environment. It was stopped at 52 runs (10 passes), with 31 of the 36 core rows done (4 passes). Not all 36 core rows were present, so it was archived and the node restarted on the core set.; lab chain result (36-run core bench): 6 of 36 passes, 9.64 passes per hour, median output 58.47 tok/s, 3.59 board Wh per task, 1.361 loop events per run, edit-error rate per edit call 0.494 (44 of 89), bash non-zero 70 of 116 (secondary), output-limit truncations 19, tool error share 0.368, failures {'build': 8, 'review': 6, 'gofmt': 5, 'tests': 5, 'ci_script': 2, 'rubric': 2, 'vet': 2}. Variant testgate. |
+| `tool-call-format` | Cut edit-tool errors: oldText not found, not unique, or no change. | Edit-tool arm: precise mismatch errors (nearest match with line numbers, or the duplicate count), line-anchored edits, and a fuzzy match only on a unique hit after whitespace normalization. 36-run core agent bench on the current best config (variant editrel-on-base, or editrel-on-testgate if test-gate becomes best). The arm is opt-in in a separate patched pi copy; the live pi and the harness binary are unchanged. | Edit-error rate per edit call (edit errors excluding output-limit truncations, over all edit calls), passes per hour and pass rate (n=36, core set) against the current best config. Secondary only: bash non-zero exits per bash call. | Target: edit-error rate per edit call cut by half (baseline 52 of 110 edit calls, 47.3%; 52 of 363 of all tool calls). Passes per hour not below the current best config. | in progress | baseline tool calls, full-offload run (not this node's result): 144 of 363 calls errored; 0 malformed. Calls by tool: bash 124, edit 110, read 81, write 48.; baseline edit mismatches (oldText not found, not unique, or no change): 52 of 110 edit calls (47.3%), 52 of 363 tool calls: not found 24, not unique 21, no change 7; baseline bash non-zero exits (secondary metric): 83 of 124 bash calls (83 of 363 tool calls); baseline output-limit truncations (moved to thinking-budget): 9 of 363 tool calls (write 5, edit 4); correction to the earlier lab count: The earlier per-call count gave bash 78 and truncations 14. A keyword match had put 5 bash errors whose output contained the word parse into the truncation class. The raw per-call log gives bash 83, truncation 9, edit 52 (total 144 unchanged).; grammar arm: Negative result: 0 of 363 calls were malformed, so a grammar has nothing to fix. pi already sends a strict JSON schema for tool calls. Not run. |
+| `sampler` | Use Qwen3's recommended non-thinking sampler instead of the lab defaults, and test presence penalty. | Two arms, 36-run core agent bench each, on the best config at launch (both arms share one base). Arm A (launch entry sampler-a): Qwen3 non-thinking set, temperature 0.7, top-p 0.8, top-k 20, min-p 0, presence penalty 0. Arm B (launch entry sampler-b): the same set with presence penalty 1.5. Baseline: full-offload's defaults, temperature 0.2, top-k 20, top-p 0.95, presence penalty 0 (min-p 0.05, the server default). The params are sent per request: the arm's roles use a pi provider that points at a bench-only request proxy, which sets these fields on every chat request. The server launch is unchanged. A preflight request checks the server's slot params before the bench starts. | Passes per hour (decision), pass rate, loop events per run, tool-call errors, Wh per task, truncations per role. | Keep an arm only if its passes per hour beat the base config. If both do, keep the higher one. Loop events and pass rate are reported, not used to decide. | queued | — |
+| `thinking-budget` | Test whether thinking helps the planner role: thinking on for pm only, with a bounded reasoning budget. | Thinking on for the pm role only, reasoning budget 1024 tokens. Every other role stays thinking-off. No output cap change: max output tokens stay as in the base config. 36-run core agent bench on the best config. Per role and per request: the pm role uses a pi provider that points at a bench-only request proxy. It adds chat_template_kwargs enable_thinking true and a 1024-token per-request thinking budget. The server stays thinking-off by default (reasoning budget 0), so other roles are unchanged. A preflight checks four things before the bench: thinking is on through the proxy, the reasoning stays within 1024 tokens, a 16-token budget is enforced per request, and a plain request still has no thinking. | Passes per hour, pass rate (overall and pm), board Wh per task, truncated tool calls and length stops per role (baseline 9 of 363 calls in the full-offload run: write 5, edit 4). | Keep only if passes per hour beat the base config. Report the pm pass rate and pm truncations separately. | queued | baseline output-limit truncations, full-offload run (not this node's result): 9 of 363 tool calls (write 5, edit 4). The earlier count of 14 included 5 bash errors by a keyword match. |
 | `loop-guard` | Stop the agent from repeating the same tool call. | After 3 identical tool calls, reset the turn with a short note to the agent. 36-run agent bench. | Loop events per run, pass rate, wall time. | Target: loop events cut by half. | queued | — |
 | `agent-stack` | Combine the fixes that helped and check them on tasks that were not used to tune them. | Turn on all fixes that won. Run the 36-run bench and a held-out task set. | Pass rate on the tuned set and on the held-out set, reported apart. | Target: at least 10 of 36 passes (one-sided Fisher p about 0.03 vs 3 of 36). | queued | — |
 
@@ -281,12 +283,23 @@ Every measured value names its source file. Paths are relative to the repo root.
 
 ### `full-offload`
 
-- partial run (not a result): **2 of 14 passes before the pause; config -ngl 99, ctx 8192, KV q8_0/q8_0, FA on. Restarts from scratch on resume.**. Source: `results/full-offload.md`
+- verdict: **Kept for throughput. All targets met: decode 57.54 tok/s vs 18.22 at partial offload (target 40), passes per hour 14.54 vs 1.716 (8.5x, target 1.5x), 6 of 36 passes (target: not below 3), zero OOM. The gain is in passes per hour and tok/s. The pass rate is not shown to be better: 6 of 36 vs 3 of 36 have overlapping 95% intervals. Full offload is the new current best config.**. Source: `results/full-offload.md`
+- pass rate (36-run agent bench, card headless): **6 of 36 (16.7%, Wilson 95% CI 7.9% to 31.9%). Baseline at partial offload was 3 of 36 (8.3%, CI 2.9% to 21.8%). Intervals overlap, so no pass-rate gain is claimed.**. Source: `results/full-offload.md`
+- passes per hour: **14.54 vs 1.716 at partial offload (8.5x)**. Source: `results/full-offload.md`
+- agent median output tok/s: **57.54**. Source: `results/full-offload.md`
+- agent median wall s per task: **18.39 vs 73.4 at partial offload**. Source: `results/full-offload.md`
+- board energy: **2.329 Wh per task (baseline 2.535), 13.97 Wh per pass, 1009 Wh per 1M output tokens, 203.1 W mean board power during the bench**. Source: `results/full-offload.md`
+- out-of-memory count: **0**. Source: `results/full-offload.md`
+- failure causes of the 30 non-passing runs: **gofmt 9, tests 6, review 6, build 4, vet 3, rubric 1, missing output 1. gofmt, build and vet are 16 of 30.**. Source: `results/full-offload.md`
+- context check (p95 basis): **ctx 16384 covers per-run max context p95 6248 and observed max 10587; peak VRAM 6318 MiB of 8192, no context-exceeded errors in the server log.**. Source: `results/full-offload.md`
+- server config in use: **-ngl 99, ctx 16384, KV q8_0/q8_0 (confirmed from the running server args), FA on, 1 slot. VRAM 6312 MiB under load with the card headless.**. Source: `results/full-offload.md`
+- reference only, discarded attempt: display on the 3070 (confounded, not a result): **36 of 36 runs completed, 4 passes. Agent median output 53.82 tok/s, 202.6 W mean board power. Discarded because the desktop was drawn on the 3070 (693 MiB, about 25% utilization, about 11 W at idle).**. Source: `results/full-offload.md`
 - llama-bench tg128 at -ngl 99 (unlocked replication, warm): **73.8**. Source: `results/unlocked-replication.md`
 - lab server load test at partial offload, gen tok/s, 3 reps (before this node): **20.63 / 21.43 / 21.81**. Source: `results/unlocked-replication.md`
-- agent bench median output tok/s at partial offload (before this node): **18.22**. Source: `results/agent-bench/unlocked/summary.json`
+- agent bench median output tok/s at partial offload (before this node): **18.22** (Model Qwen3-8B Q4_K_M, confirmed from the lab model file and the run's request logs; see the session meta.). Source: `results/agent-bench/unlocked/summary.json`
 - per-run max context, unlocked bench: p50 / p95 / max (tokens): **2811.5 / 4396 / 6248** (computed from the max_ctx field of 36 runs). Source: `results/agent-bench/unlocked/pi_results.jsonl`
-- Confounds: The partial run stopped at 14 of 36 runs. The pause confounds timing, so the node restarts from scratch. The prior values are from before this node. They are not its result. The max_ctx field may not equal the context the server needs. Check it against server logs.
+- mma ratio FP32-acc / FP16-acc at bench start (unlock active): **1.0**. Source: `results/full-offload.md`
+- Confounds: The gain is in throughput (passes per hour and tok/s). The pass-rate gain is not proven: 6 of 36 and 3 of 36 have overlapping 95% intervals. Two earlier attempts are discarded. A 14-run partial run stopped for a pause. A full 36-run run had the desktop display on the 3070. Its figures are for reference only. Idle VRAM residual: 321 MiB on the card with no process listed, the display on the integrated GPU and no lab process. The baseline idle value was 0 MiB. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB). The baseline ran at the default cap. Context is 16384. The discarded partial run used 8192. The prior values are from before this node. They are not its result.
 
 ### `failure-sort`
 
@@ -298,6 +311,29 @@ Every measured value names its source file. Paths are relative to the repo root.
 - output-limit hits (sum of length_hits): **20 hits in 18 runs (locked 9 in 7, unlocked 11 in 11)**. Source: `results/agent-bench/locked/pi_results.jsonl ; results/agent-bench/unlocked/pi_results.jsonl`
 - passes by role: **planner (pm) 5 of 10; other five roles 0 of 50**. Source: `results/agent-bench/locked/pi_results.jsonl ; results/agent-bench/unlocked/pi_results.jsonl`
 - Confounds: First pass from result fields only. No transcript review yet. gofmt, build and vet failures (25 of 55) are checks the agent can run itself before it says 'done'.
+
+### `test-gate`
+
+- verdict: **Measured negative result. Reverted. 6 of 36 passes (same as full-offload), 9.64 passes per hour vs 14.54, 3.59 board Wh per task vs 2.33. gofmt, build and vet failures went from 16 to 15 of 30, so the gate did not cut them by half. It did not beat full-offload on passes per hour, so it is not carried into later nodes. The best config stays full-offload (base variant).**. Source: `results/test-gate.md`
+- run: **36-run core agent bench (n=3) of variant testgate (attempts 2) at the full-offload config, card headless.**. Source: `results/test-gate.md`
+- discarded attempt: wrong task set (not a result): **The first run used the full task set (9 roles) because the core-set setting was missing from its environment. It was stopped at 52 runs (10 passes), with 31 of the 36 core rows done (4 passes). Not all 36 core rows were present, so it was archived and the node restarted on the core set.**. Source: `results/test-gate.md`
+- lab chain result (36-run core bench): **6 of 36 passes, 9.64 passes per hour, median output 58.47 tok/s, 3.59 board Wh per task, 1.361 loop events per run, edit-error rate per edit call 0.494 (44 of 89), bash non-zero 70 of 116 (secondary), output-limit truncations 19, tool error share 0.368, failures {'build': 8, 'review': 6, 'gofmt': 5, 'tests': 5, 'ci_script': 2, 'rubric': 2, 'vet': 2}. Variant testgate.**. Source: `results/test-gate.md`
+- Confounds: Never use the hidden checks as the gate. The wrong-set attempt is discarded. Its 31 core rows are not mixed into this result. The gate adds gofmt, vet, build and test runs to every attempt, so wall time and energy per task rise even where the result is unchanged.
+
+### `tool-call-format`
+
+- baseline tool calls, full-offload run (not this node's result): **144 of 363 calls errored; 0 malformed. Calls by tool: bash 124, edit 110, read 81, write 48.**. Source: `results/tool-call-format-errors.jsonl`
+- baseline edit mismatches (oldText not found, not unique, or no change): **52 of 110 edit calls (47.3%), 52 of 363 tool calls: not found 24, not unique 21, no change 7**. Source: `results/tool-call-format-errors.jsonl`
+- baseline bash non-zero exits (secondary metric): **83 of 124 bash calls (83 of 363 tool calls)**. Source: `results/tool-call-format-errors.jsonl`
+- baseline output-limit truncations (moved to thinking-budget): **9 of 363 tool calls (write 5, edit 4)**. Source: `results/tool-call-format-errors.jsonl`
+- correction to the earlier lab count: **The earlier per-call count gave bash 78 and truncations 14. A keyword match had put 5 bash errors whose output contained the word parse into the truncation class. The raw per-call log gives bash 83, truncation 9, edit 52 (total 144 unchanged).**. Source: `results/tool-call-format.md`
+- grammar arm: **Negative result: 0 of 363 calls were malformed, so a grammar has nothing to fix. pi already sends a strict JSON schema for tool calls. Not run.**. Source: `results/tool-call-format.md`
+- Confounds: Many bash non-zero exits are normal build or test failures that the agent must see. The arm only applies a whitespace-normalized match when it is line-aligned and unique. pi's own fuzzy match also matched inside a line; that partial-line case now gets a nearest-match error instead. This is part of the arm. The read tool shows no line numbers, so line anchors come from error messages, grep -n or read offsets. Read is left unchanged so that only the edit tool varies. The 4 edit calls cut by the output limit count as edit calls but not as edit errors.
+
+### `thinking-budget`
+
+- baseline output-limit truncations, full-offload run (not this node's result): **9 of 363 tool calls (write 5, edit 4). The earlier count of 14 included 5 bash errors by a keyword match.**. Source: `results/tool-call-format-errors.jsonl`
+- Confounds: Thinking tokens count toward the same max output tokens, so pm may truncate more. That is measured, not capped. If the server cannot switch thinking per request, the preflight stops the node before the bench. It does not fall back to a server-wide change. pm keeps the base sampler. The thinking-mode sampler set is not applied, so only thinking changes.
 
 ### `power-log`
 
@@ -319,6 +355,11 @@ Every measured value names its source file. Paths are relative to the repo root.
 - All 5 passes came from the planner role (5 of 10). The other five roles passed 0 of 50.
 - 39 of 60 runs had a loop event. None of them passed. This is a correlation, not a cause.
 - WSL2 sees 15.5 of 32 GiB of RAM under its default 50% cap. 11.9 GiB was available with the lab running. That is marginal for MoE expert offload.
+- Full offload gives a large throughput gain. Passes per hour went from 1.716 to 14.54 (8.5x). Agent median output went from 18.22 to 57.54 tok/s. The median wall time per task went from 73.4 s to 18.39 s.
+- The full-offload pass rate is 6 of 36 (95% CI 7.9% to 31.9%). The baseline is 3 of 36. The intervals overlap, so this does not prove a better pass rate.
+- Full offload uses more board power (203.1 W mean against 56.43 W at partial offload). Energy per task fell slightly, from 2.535 to 2.329 Wh, because tasks finish faster.
+- In the full-offload run, 144 of 363 tool calls had an error. 0 calls were malformed. 52 were edit mismatches (47.3% of 110 edit calls), 83 were bash commands with a non-zero exit and 9 were output-limit truncations. An earlier count gave 78 and 14. A keyword match had put 5 bash errors in the truncation class.
+- The test gate did not help. Running gofmt, vet, build and the visible tests before 'done' kept passes at 6 of 36. Passes per hour fell from 14.54 to 9.64, and board energy per task rose from 2.33 to 3.59 Wh. gofmt, build and vet failures went from 16 to 15 of 30. The gate was reverted, and full offload stays the best config.
 
 ## How to replicate
 
@@ -346,11 +387,11 @@ Use your own paths and model files. Check each flag with `--help` on your llama.
    ```
    llama-server -m MODEL.gguf -ngl 99 -fa on -c CTX -ctk q8_0 -ctv q8_0 --parallel 1 --jinja
    ```
-6. Sampler (from the Qwen3-8B GGUF model card):
+6. Sampler. The `sampler` node tests Qwen3's non-thinking set against the defaults (temperature 0.2, top-p 0.95, top-k 20, min-p 0.05), with presence penalty 0 in arm A and 1.5 in arm B:
    ```
-   --temp 0.6 --top-p 0.95 --top-k 20 --presence-penalty 1.5
+   --temp 0.7 --top-p 0.8 --top-k 20 --min-p 0 --presence-penalty 0
    ```
-7. Thinking budget: `--reasoning-budget N`, or no thinking for edit roles.
+7. Thinking budget. The `thinking-budget` node turns thinking on for the planner role only, with a 1024-token reasoning budget per request. Every other role stays thinking-off.
 8. Speculative decoding: n-gram lookup mode first (see `--help`). Then a draft model:
    ```
    llama-server ... -md Qwen3-0.6B-Q8_0.gguf --draft-max 8
@@ -387,14 +428,16 @@ Use your own paths and model files. Check each flag with `--help` on your llama.
 - Do not change the power limit, clocks or undervolt.
 - Do not reboot, shut down or sleep the machine while unlocked.
 - Do not write firmware, VBIOS, ESP, BCD or NVRAM.
-- A WSL2 memory-cap change needs the owner's approval.
+- A WSL2 memory-cap change needs the owner's go.
 - Cold-boot arms need the owner present.
 - Stop if the screen blanks under load.
 
 ## Open items
 
-- The MoE node needs more memory than WSL2 gets at its default 50% cap (15.5 of 32 GiB visible).
-- The longest context that real jobs need is not verified against server logs.
+- The full-offload pass-rate gain is not proven at n=36. More runs are necessary to measure it.
+- The test machine showed 321 MiB of idle VRAM on the card with no process listed. The cause is not known.
+- The longest context that real jobs need is checked against the full-offload server logs only.
 - No locked GEMM baseline and no locked flash-attention-off baseline exist.
-- The unlocked power log does not cover the first tasks. Unlocked Wh per pass is not known yet.
+- Wh per pass at partial offload is not known, because its power log does not cover the first tasks.
+- The raw per-call tool log of the full-offload run is not in the results folder yet.
 - Deferred areas: other inference engines and LoRA training for weak roles. They are not in this version of the tree.
