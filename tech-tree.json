@@ -1,6 +1,6 @@
 {
  "name": "RTX 3070 tech tree",
- "version": "1.2.0",
+ "version": "1.3.0",
  "updated": "2026-10-26",
  "scope": "Get the most real work from one RTX 3070 8 GB (LHR included) for local LLMs and agent work.",
  "results_dir": "results/",
@@ -39,7 +39,7 @@
  },
  "measurement_rules": [
   "State n for every number. llama-bench uses -r 5 and 3 reps where possible.",
-  "Label warm or cold. All results in v1.2.0 are warm.",
+  "Label warm or cold. All results in v1.3.0 are warm.",
   "Keep the display on the integrated GPU for A/B runs, or label the confound.",
   "Report pass rates with 95% confidence intervals.",
   "A target is a goal, not a result."
@@ -49,6 +49,13 @@
   "passes": "3 of 36",
   "passes_per_hour": 1.716,
   "median_out_tps": 18.22,
+  "model": "Qwen3-8B Q4_K_M",
+  "llama_cpp": "b11734",
+  "ngl": "30 (inferred)",
+  "ctx": "24576 (inferred)",
+  "kv": "q4_0/q4_0 (inferred)",
+  "inferred_note": "The -ngl, ctx and KV values are the lab defaults at that time. They are inferred from the serve script defaults, not from a log of the launch line.",
+  "inferred_source": "results/full-offload.md",
   "source": "results/agent-bench/unlocked/summary.json",
   "verified": true
  },
@@ -353,6 +360,7 @@
    ],
    "unlocks": [
     "full-offload",
+    "fit-map",
     "moe-offload"
    ],
    "test": "Same 15,414-token prompt at 64K context, -ngl 30, 3 reps per K/V pair. Log the flash-attention fallback flag and peak VRAM.",
@@ -402,7 +410,8 @@
     "harness"
    ],
    "unlocks": [
-    "full-offload"
+    "full-offload",
+    "fit-map"
    ],
    "test": "llama-bench -ngl 99, -fa 1 vs -fa 0, pp512/pp4096/pp16384.",
    "metric": "Prefill tok/s per prompt length.",
@@ -448,6 +457,8 @@
     "flash-attention"
    ],
    "unlocks": [
+    "fit-map",
+    "offload-curve",
     "quant-choice",
     "spec-ngram",
     "dense-newer",
@@ -563,12 +574,62 @@
    "results_path": "results/full-offload.md"
   },
   {
+   "id": "fit-map",
+   "tier": "inference",
+   "title": "Fit map for an 8 GB card",
+   "goal": "Find which model, quant, context and KV cache settings fit fully on an 8 GB card, and how fast each runs.",
+   "prereqs": [
+    "full-offload",
+    "kv-cache-types",
+    "flash-attention"
+   ],
+   "unlocks": [
+    "quant-choice",
+    "dense-newer"
+   ],
+   "test": "Qwen3-8B at Q4_K_M, Q5_K_M, Q6_K and Q8_0, Qwen3.5-9B Q4_K_M, a 4B-class and a 14B-class Q4_K_M, all layers on the GPU, FA on. For each KV pair (f16, q8_0, q4_0), find the largest ctx that loads and serves a 512-token prompt. Record peak VRAM and llama-bench pp512/tg128 (n=3).",
+   "metric": "Max ctx, VRAM MiB, pp512 and tg128 tok/s.",
+   "target": "Target: a table of every model, quant and KV pair with its max ctx, peak VRAM and speed.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The display must be off the card, or the free VRAM is lower. Label it."
+   ],
+   "safety_notes": [
+    "No power or clock changes."
+   ]
+  },
+  {
+   "id": "offload-curve",
+   "tier": "inference",
+   "title": "Partial offload speed curve",
+   "goal": "Show how speed falls as layers move from the card to system RAM.",
+   "prereqs": [
+    "full-offload"
+   ],
+   "unlocks": [
+    "moe-offload"
+   ],
+   "test": "llama-bench pp512/tg128 for Qwen3-8B Q4_K_M at -ngl 0, 8, 16, 24, 30 and all layers, ctx 4096, n=3. Then a 14B-class model up to the most layers that fit. Log VRAM and board power.",
+   "metric": "pp512 and tg128 tok/s per -ngl, VRAM MiB, board W.",
+   "target": "Target: a speed curve per model from -ngl 0 to all layers.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "System RAM speed and CPU threads set the slow end of the curve."
+   ],
+   "safety_notes": [
+    "No power or clock changes."
+   ]
+  },
+  {
    "id": "quant-choice",
    "tier": "inference",
    "title": "Weight quant choice",
    "goal": "Find the weight quant with the best passes per hour that fits at full offload.",
    "prereqs": [
-    "full-offload"
+    "full-offload",
+    "fit-map"
    ],
    "unlocks": [],
    "test": "Same model at Q4_K_M, IQ4_XS and Q5_K_M (if it fits). llama-bench, then the 36-run agent bench at the full-offload settings.",
@@ -627,7 +688,8 @@
    "title": "Newer small dense model at full offload",
    "goal": "Test whether a newer small model (Qwen3.5-9B) passes more tasks at a similar speed.",
    "prereqs": [
-    "full-offload"
+    "full-offload",
+    "fit-map"
    ],
    "unlocks": [],
    "test": "Qwen3.5-9B Q4_K_M at -ngl 99. Check the chat and tool-call template. llama-bench pp512/pp4096/tg128, then the 36-run agent bench.",
@@ -648,14 +710,15 @@
    "prereqs": [
     "ram-wsl-check",
     "kv-cache-types",
-    "full-offload"
+    "full-offload",
+    "offload-curve"
    ],
    "unlocks": [
     "bigger-class"
    ],
-   "test": "Qwen3.6-35B-A3B UD-IQ4_XS (unsloth GGUF, sha256 checked), same llama.cpp build. 1) Stop the lab server. llama-bench at --n-cpu-moe 24, 27 and 30: pp512, pp4096 and tg128, -ngl 99, FA on, KV q8_0/q8_0, no mmap (so expert weights count as real RAM), 8 threads, 2 reps. RAM available, swap and VRAM are logged at 1 s, with a hard stop if RAM available falls below 2 GiB or swap grows by 1 GiB. 2) Pick: the setting must run all tests with VRAM peak at most 7600 of 8192 MiB, RAM available at least 6 GiB and swap growth at most 256 MiB. Among fitting settings, the best tg128 wins, then pp4096. 3) Server fit ladder through a node-only lab server drop-in: picked setting at ctx 16384 KV q8_0, then the next fitting setting, then KV q4_0, then ctx 12288 and 8192. Each step must pass health, a 6000-token request, the VRAM limit, RAM available of at least 6 GiB and no swap growth. 4) 36-run core agent bench on the best variant. The bench checks the node's declared model and args instead of the 8B defaults, and a RAM and swap watchdog runs every 5 s. 5) The drop-in is removed and the Qwen3-8B best config is restored and verified, including on failure.",
+   "test": "Qwen3.6-35B-A3B UD-IQ4_XS (unsloth GGUF, 17.7 GB), same llama.cpp build. 1) llama-bench sweep at --n-cpu-moe 24, 27 and 30 (pp512, pp4096, tg128), with RAM, swap and VRAM logged. 2) Server fit ladder: ctx 16384 with KV q8_0, then KV q4_0, then ctx 12288, then ctx 8192. Each step must pass health, a 6000-token request and the VRAM and RAM limits. 3) 36-run core agent bench on the best fitting step. 4) Restore the Qwen3-8B best config and verify it, also on failure.",
    "metric": "llama-bench pp512, pp4096 and tg128 per n-cpu-moe, with RAM and VRAM peaks. Agent bench: passes per hour, pass rate, median output tok/s, board Wh per task and per pass, RAM available minimum, swap use, truncations per role.",
-   "target": "Target: at least 10 of 36 passes and agent decode at least 18 tok/s. A passes-per-hour win is flagged for a research decision and not moved into the best config automatically, because it swaps the server model.",
+   "target": "Target: at least 10 of 36 passes and agent decode at least 18 tok/s. A win does not replace the best config, because the model changes.",
    "status": "queued",
    "result": null,
    "confounds": [
@@ -664,7 +727,9 @@
     "The thinking-off template path and the 8B sampler defaults (temp 0.2, top-p 0.95, top-k 20) are kept. The model card suggests other sampler values (GGUF default temp 1.0, top-p 0.95, top-k 20).",
     "The model is served under two aliases, its own name and the 8B id that pi sends, so pi and the harness need no change. Logs show the 8B id in requests.",
     "The download ran during the tool-call-format and loop-guard benches, throttled (about 30 MB/s, idle IO class, lowest CPU priority). Its time window is logged with the node.",
-    "At 16384 context the KV cache is small (10 full-attention layers with 2 KV heads), so context is unlikely to limit the fit. Expert RAM is the tight resource under the 23 GiB WSL2 cap."
+    "At 16384 context the KV cache is small (10 full-attention layers with 2 KV heads), so context is unlikely to limit the fit. Expert RAM is the tight resource under the 23 GiB WSL2 cap.",
+    "No slot restore: the prompt cache starts cold.",
+    "System RAM risk: expert weights in RAM can push the 23 GiB WSL2 VM into swap."
    ],
    "safety_notes": [
     "Runs at the 24 GB WSL2 memory cap. A WSL2 restart stops lab services.",
@@ -681,8 +746,7 @@
     "sha256": "649d7508507b84638732c4f52c24c8b15843c6dca2f3ff793ae07c14a67ebbb3",
     "gguf": "arch qwen35moe, 40 blocks (full attention every 4th, the rest linear attention), 256 experts, 8 active, 2 KV heads of 256, file_type 30 (IQ4_XS)",
     "why": "The requested quant exists under that exact name in the unsloth repo. The official Qwen GGUF repo is not public under that name."
-   },
-   "launcher": "ready (lab chain), runs after thinking-budget"
+   }
   },
   {
    "id": "fp16-workloads",
@@ -813,7 +877,8 @@
     "The gate adds gofmt, vet, build and test runs to every attempt, so wall time and energy per task rise even where the result is unchanged."
    ],
    "safety_notes": [],
-   "verdict": "negative, reverted"
+   "verdict": "negative, reverted",
+   "results_path": "results/test-gate.md"
   },
   {
    "id": "tool-call-format",
@@ -832,6 +897,11 @@
    "target": "Target: edit-error rate per edit call cut by half (baseline 52 of 110 edit calls, 47.3%; 52 of 363 of all tool calls). Passes per hour not below the current best config.",
    "status": "measured",
    "result": [
+    {
+     "metric": "verdict",
+     "value": "Measured negative result. Reverted. 3 of 36 passes, 3.56 passes per hour vs 14.54, edit-error rate per edit call 0.67 vs 0.47, 4.90 board Wh per task vs 2.33. The best config stays full-offload (base variant).",
+     "source": "results/tool-call-format.md"
+    },
     {
      "metric": "baseline tool calls, full-offload run (not this node's result)",
      "value": "144 of 363 calls errored; 0 malformed. Calls by tool: bash 124, edit 110, read 81, write 48.",
@@ -869,12 +939,15 @@
     }
    ],
    "confounds": [
+    "The edit logic is not isolated. The ci role hit output-limit truncation on 163 of 240 tool calls (baseline 4). Median wall time per task rose from 18.39 s to 45.07 s.",
     "Many bash non-zero exits are normal build or test failures that the agent must see.",
     "The arm only applies a whitespace-normalized match when it is line-aligned and unique. pi's own fuzzy match also matched inside a line; that partial-line case now gets a nearest-match error instead. This is part of the arm.",
     "The read tool shows no line numbers, so line anchors come from error messages, grep -n or read offsets. Read is left unchanged so that only the edit tool varies.",
     "The 4 edit calls cut by the output limit count as edit calls but not as edit errors."
    ],
-   "safety_notes": []
+   "safety_notes": [],
+   "verdict": "negative, reverted",
+   "results_path": "results/tool-call-format.md"
   },
   {
    "id": "sampler",
@@ -888,35 +961,37 @@
    "unlocks": [
     "agent-stack"
    ],
-   "test": "Two arms, 36-run core agent bench each, on the best config at launch (both arms share one base). Arm A (launch entry sampler-a): Qwen3 non-thinking set, temperature 0.7, top-p 0.8, top-k 20, min-p 0, presence penalty 0. Arm B (launch entry sampler-b): the same set with presence penalty 1.5. Baseline: full-offload's defaults, temperature 0.2, top-k 20, top-p 0.95, presence penalty 0 (min-p 0.05, the server default). The params are sent per request: the arm's roles use a pi provider that points at a bench-only request proxy, which sets these fields on every chat request. The server launch is unchanged. A preflight request checks the server's slot params before the bench starts.",
+   "test": "Two arms, 36-run core agent bench each, on the best config at launch (both arms share one base). sampler-a: Qwen3 non-thinking set (temperature 0.7, top-p 0.8, top-k 20), except that min-p stays at the server default 0.05; presence penalty 0. sampler-b: the same set with presence penalty 1.5. Label both 'Qwen3 set, except min-p'. Baseline: full-offload defaults, temperature 0.2, top-p 0.95, top-k 20, min-p 0.05, presence penalty 0. The params are sent per request through a bench-only proxy. No server change. A preflight request checks the server's slot params before the bench starts.",
    "metric": "Passes per hour (decision), pass rate, loop events per run, tool-call errors, Wh per task, truncations per role.",
    "target": "Keep an arm only if its passes per hour beat the base config. If both do, keep the higher one. Loop events and pass rate are reported, not used to decide.",
    "status": "queued",
    "result": null,
    "confounds": [
     "The thinking-mode set (temperature 0.6, top-p 0.95, top-k 20, min-p 0) does not apply here, because thinking is off for every role in both arms. The earlier test text used it with presence 1.5.",
-    "Min-p moves from 0.05 (the server default) to 0 in both arms. That is part of Qwen3's set, so it is not split out.",
-    "The arms run one after the other, not interleaved. Each is compared with the same base run."
+    "The arms run one after the other, not interleaved. Each is compared with the same base run.",
+    "Min-p stays at the server default 0.05. Qwen3's own set uses min-p 0, so the arms are 'Qwen3 set, except min-p'."
    ],
    "safety_notes": [],
    "arms": [
     {
      "id": "sampler-a",
+     "label": "Qwen3 set, except min-p",
      "set": {
       "temperature": 0.7,
       "top_p": 0.8,
       "top_k": 20,
-      "min_p": 0,
+      "min_p": 0.05,
       "presence_penalty": 0
      }
     },
     {
      "id": "sampler-b",
+     "label": "Qwen3 set, except min-p",
      "set": {
       "temperature": 0.7,
       "top_p": 0.8,
       "top_k": 20,
-      "min_p": 0,
+      "min_p": 0.05,
       "presence_penalty": 1.5
      }
     }
@@ -941,7 +1016,7 @@
    "unlocks": [
     "agent-stack"
    ],
-   "test": "Thinking on for the pm role only, reasoning budget 1024 tokens. Every other role stays thinking-off. No output cap change: max output tokens stay as in the base config. 36-run core agent bench on the best config. Per role and per request: the pm role uses a pi provider that points at a bench-only request proxy. It adds chat_template_kwargs enable_thinking true and a 1024-token per-request thinking budget. The server stays thinking-off by default (reasoning budget 0), so other roles are unchanged. A preflight checks four things before the bench: thinking is on through the proxy, the reasoning stays within 1024 tokens, a 16-token budget is enforced per request, and a plain request still has no thinking.",
+   "test": "Thinking on for the pm role only: enable_thinking with a 1024-token thinking budget per request, through a bench-only proxy. Every other role stays thinking-off. The server stays thinking-off by default, with no server change. A preflight checks the per-request override before the bench and stops the node if it fails. 36-run core agent bench on the best config.",
    "metric": "Passes per hour, pass rate (overall and pm), board Wh per task, truncated tool calls and length stops per role (baseline 9 of 363 calls in the full-offload run: write 5, edit 4).",
    "target": "Keep only if passes per hour beat the base config. Report the pm pass rate and pm truncations separately.",
    "status": "queued",
@@ -953,7 +1028,7 @@
     }
    ],
    "confounds": [
-    "Thinking tokens count toward the same max output tokens, so pm may truncate more. That is measured, not capped.",
+    "Thinking tokens share pm's 4096-token output cap. pm truncations are logged, not capped.",
     "If the server cannot switch thinking per request, the preflight stops the node before the bench. It does not fall back to a server-wide change.",
     "pm keeps the base sampler. The thinking-mode sampler set is not applied, so only thinking changes."
    ],
@@ -1185,84 +1260,94 @@
   {
    "rank": 1,
    "id": "loop-guard",
-   "reason": "39 of 60 runs had a loop event, and none of them passed."
+   "reason": "In progress. 28 of 36 runs in the full-offload run had a loop event."
   },
   {
    "rank": 2,
+   "id": "fit-map",
+   "reason": "The first question of 8 GB owners: what fits fully on the card. It gives max ctx, peak VRAM and speed for each model, quant and KV cache type."
+  },
+  {
+   "rank": 3,
+   "id": "offload-curve",
+   "reason": "Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30."
+  },
+  {
+   "rank": 4,
+   "id": "moe-offload",
+   "reason": "Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
+  },
+  {
+   "rank": 5,
+   "id": "quant-choice",
+   "reason": "Which quant to pick at full offload. It uses the fit-map limits."
+  },
+  {
+   "rank": 6,
+   "id": "dense-newer",
+   "reason": "Which newer small model to pick at full offload. It uses the fit-map limits."
+  },
+  {
+   "rank": 7,
+   "id": "spec-ngram",
+   "reason": "No VRAM cost. Can speed up code and JSON output."
+  },
+  {
+   "rank": 8,
    "id": "sampler",
-   "reason": "Qwen3 non-thinking sampler, two arms: A presence 0, then B presence 1.5. Per request, no server change.",
+   "reason": "Two arms: sampler-a (presence 0) and sampler-b (presence 1.5). Qwen3 set, except min-p. Per request, no server change.",
    "arms": [
     "sampler-a",
     "sampler-b"
    ]
   },
   {
-   "rank": 3,
+   "rank": 9,
    "id": "thinking-budget",
-   "reason": "Planner-only thinking: pm thinks with a 1024-token budget, other roles off. Runs after both sampler arms."
+   "reason": "pm only, 1024-token thinking budget per request. pm is the role that passes most."
   },
   {
-   "rank": 4,
-   "id": "moe-offload",
-   "reason": "Runs after the loop fixes so the 35B model is tested with them. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
-  },
-  {
-   "rank": 5,
+   "rank": 10,
    "id": "wh-per-pass",
    "reason": "Free with each bench once power logging starts before task 1."
   },
   {
-   "rank": 6,
+   "rank": 11,
    "id": "parallel-slots",
    "reason": "At partial offload, mean board power was 56.43 W of a 220 W limit. At full offload it is 203.1 W, so the gain from more slots is less sure."
   },
   {
-   "rank": 7,
+   "rank": 12,
    "id": "agent-stack",
    "reason": "Confirms the agent fixes on a held-out set."
   },
   {
-   "rank": 8,
+   "rank": 13,
    "id": "bigger-class",
    "reason": "Capstone. Needs moe-offload and agent-stack measured."
   },
   {
-   "rank": 9,
-   "id": "best-of-n",
-   "reason": "Uses spare slots plus the test gate to lift the 0-pass roles."
-  },
-  {
-   "rank": 10,
-   "id": "agent-workers",
-   "reason": "More jobs per hour if the CPU keeps up."
-  },
-  {
-   "rank": 11,
-   "id": "spec-ngram",
-   "reason": "No VRAM cost. Helps code and JSON output."
-  },
-  {
-   "rank": 12,
+   "rank": 14,
    "id": "spec-draft",
    "reason": "Bigger speed-up, but it costs VRAM."
   },
   {
-   "rank": 13,
-   "id": "dense-newer",
-   "reason": "A newer small model may pass more tasks at full offload."
-  },
-  {
-   "rank": 14,
-   "id": "quant-choice",
-   "reason": "Small expected gain. Run after the agent fixes settle."
-  },
-  {
    "rank": 15,
+   "id": "best-of-n",
+   "reason": "Uses spare slots to lift the 0-pass roles."
+  },
+  {
+   "rank": 16,
+   "id": "agent-workers",
+   "reason": "More jobs per hour if the CPU keeps up."
+  },
+  {
+   "rank": 17,
    "id": "fp16-workloads",
    "reason": "The only place the unlock pays. Unlocked-only numbers until locked-ab runs."
   },
   {
-   "rank": 16,
+   "rank": 18,
    "id": "useful-work-per-wh",
    "reason": "Capstone. Runs when its prereqs are measured."
   }
