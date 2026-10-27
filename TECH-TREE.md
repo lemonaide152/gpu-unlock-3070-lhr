@@ -1,6 +1,6 @@
 # RTX 3070 tech tree
 
-Version 1.3.0. Updated 2026-10-26.
+Version 1.3.0. Updated 2026-10-27.
 
 This tree shows how to get the most real work from one RTX 3070 with 8 GB of VRAM. LHR cards are included. The work is local LLM inference and coding agents. Each node is one experiment. A node runs only when all of its prereqs are measured. The machine-readable form is [`tech-tree.json`](tech-tree.json).
 
@@ -22,7 +22,7 @@ Status values: `measured` means done. `in_progress` means the lab runs it now. `
 
 ## Baseline
 
-Unlocked agent bench, partial offload, warm: 3 of 36 passes, 1.716 passes per hour, 18.22 median output tok/s. Model Qwen3-8B Q4_K_M on llama.cpp b11734. Server: -ngl 30 (inferred), ctx 24576 (inferred), KV q4_0/q4_0 (inferred). The -ngl, ctx and KV values are the lab defaults at that time. They are inferred from the serve script defaults, not from a log of the launch line. Sources: `results/agent-bench/unlocked/summary.json`, `results/full-offload.md`.
+Unlocked agent bench, partial offload, warm: 3 of 36 passes, 1.716 passes per hour, 18.22 median output tok/s. Model Qwen3-8B Q4_K_M on llama.cpp b11734. Server: -ngl 30 (inferred), ctx 24576 (inferred), KV q4_0/q4_0 (inferred). The -ngl, ctx and KV values are the lab defaults at that time. They are inferred from the serve script defaults, not from a log of the launch line. Label: the lab's on-disk model file has the published file's size (5027783488 bytes) but not its sha256 (on-disk begins 9180c8dd, Qwen/Qwen3-8B-GGUF begins d98cdcbd). A check is pending: fit-map benches both copies under identical settings, and if they differ, earlier 8B results are held for review. Sources: `results/agent-bench/unlocked/summary.json`, `results/full-offload.md`.
 
 ## Graph
 

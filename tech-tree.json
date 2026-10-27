@@ -1,7 +1,7 @@
 {
  "name": "RTX 3070 tech tree",
  "version": "1.3.0",
- "updated": "2026-10-26",
+ "updated": "2026-10-27",
  "scope": "Get the most real work from one RTX 3070 8 GB (LHR included) for local LLMs and agent work.",
  "results_dir": "results/",
  "status_values": {
@@ -57,7 +57,8 @@
   "inferred_note": "The -ngl, ctx and KV values are the lab defaults at that time. They are inferred from the serve script defaults, not from a log of the launch line.",
   "inferred_source": "results/full-offload.md",
   "source": "results/agent-bench/unlocked/summary.json",
-  "verified": true
+  "verified": true,
+  "model_sha256_label": "Label: the on-disk lab Qwen3-8B Q4_K_M has the repo file's size (5027783488 bytes) but not its sha256 (on-disk begins 9180c8dd, Qwen/Qwen3-8B-GGUF begins d98cdcbd). Check pending: fit-map benches the on-disk copy and the repo copy under identical settings; if they differ, the chain holds after fit-map for review before earlier 8B results are relied on."
  },
  "tiers": [
   {
@@ -593,7 +594,9 @@
    "status": "queued",
    "result": null,
    "confounds": [
-    "The display must be off the card, or the free VRAM is lower. Label it."
+    "The display must be off the card, or the free VRAM is lower. Label it.",
+    "Label: fit-map speeds (pp512, tg128) are measured at llama-bench's short context (512-token prompt, 128 generated tokens), not at the largest context that fits. Speed at the max context is lower.",
+    "Label: the on-disk lab Qwen3-8B Q4_K_M has the repo file's size (5027783488 bytes) but not its sha256 (on-disk begins 9180c8dd, Qwen/Qwen3-8B-GGUF begins d98cdcbd). Check pending: fit-map benches the on-disk copy and the repo copy under identical settings; if they differ, the chain holds after fit-map for review before earlier 8B results are relied on."
    ],
    "safety_notes": [
     "No power or clock changes."
