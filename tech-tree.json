@@ -749,7 +749,8 @@
     "sha256": "649d7508507b84638732c4f52c24c8b15843c6dca2f3ff793ae07c14a67ebbb3",
     "gguf": "arch qwen35moe, 40 blocks (full attention every 4th, the rest linear attention), 256 experts, 8 active, 2 KV heads of 256, file_type 30 (IQ4_XS)",
     "why": "The requested quant exists under that exact name in the unsloth repo. The official Qwen GGUF repo is not public under that name."
-   }
+   },
+   "launcher": "ready (lab chain), runs after thinking-budget"
   },
   {
    "id": "fp16-workloads",
