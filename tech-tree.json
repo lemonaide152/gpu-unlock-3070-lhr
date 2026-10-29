@@ -1,7 +1,7 @@
 {
  "name": "RTX 3070 tech tree",
- "version": "1.3.0",
- "updated": "2026-10-27",
+ "version": "1.5.3",
+ "updated": "2026-10-29",
  "scope": "Get the most real work from one RTX 3070 8 GB (LHR included) for local LLMs and agent work.",
  "results_dir": "results/",
  "status_values": {
@@ -32,11 +32,18 @@
    "Do not change the power limit, clocks or undervolt.",
    "Do not reboot, shut down or sleep the machine while unlocked.",
    "Do not write firmware, VBIOS, ESP, BCD or NVRAM.",
+   "VBIOS flashing is out of scope, permanently. The firmware track is driver, CUDA and firmware version research and inventory only.",
    "A WSL2 memory-cap change needs the owner's go.",
    "Cold-boot arms need the owner present.",
    "Stop if the screen blanks under load and log power and temperature."
   ]
  },
+ "out_of_scope": [
+  {
+   "item": "VBIOS flashing",
+   "why": "Owner decision. Firmware work stays at driver, CUDA and version research and inventory. Not a node, not blocked: excluded."
+  }
+ ],
  "measurement_rules": [
   "State n for every number. llama-bench uses -r 5 and 3 reps where possible.",
   "Label warm or cold. All results in v1.3.0 are warm.",
@@ -57,14 +64,113 @@
   "inferred_note": "The -ngl, ctx and KV values are the lab defaults at that time. They are inferred from the serve script defaults, not from a log of the launch line.",
   "inferred_source": "results/full-offload.md",
   "source": "results/agent-bench/unlocked/summary.json",
-  "verified": true,
-  "model_sha256_label": "Label: the on-disk lab Qwen3-8B Q4_K_M has the repo file's size (5027783488 bytes) but not its sha256 (on-disk begins 9180c8dd, Qwen/Qwen3-8B-GGUF begins d98cdcbd). Check pending: fit-map benches the on-disk copy and the repo copy under identical settings; if they differ, the chain holds after fit-map for review before earlier 8B results are relied on."
+  "verified": true
+ },
+ "config_tiers": {
+  "rule": "Each tier stacks on the tier below. A tier counts only after it meets the pass criteria against the tier below on the frozen held-out set. Config files are published for C0 and C1. For C2 and up, the result and how it was measured are published.",
+  "pass_criteria": {
+   "set": "Frozen held-out set (heldout-set node): at least 72 tasks, 6 roles x 12, never used for tuning. Same task order, harness and power logging for both tiers. One run per task per tier at minimum (n >= 72 paired runs).",
+   "anchors": "c0-anchor and c1-anchor must complete every held-out run before any higher tier is compared.",
+   "beat": "A tier beats the tier below if at least one holds: (a) pass rate: paired on the same tasks, exact McNemar one-sided p < 0.05 for more passes (equivalently the 95% CI of the paired pass-rate difference is above 0); (b) passes per hour at least 1.10x; (c) median agent decode tok/s at least 1.10x.",
+   "no_regression": "And none of these regress beyond the margin: pass rate, the lower bound of the 95% CI of the paired difference above -5 percentage points (non-inferiority); passes per hour at least 0.95x; median agent decode tok/s at least 0.95x; board Wh per pass at most 1.10x.",
+   "fit": "Fits in 8 GB: peak VRAM logged at 1 s for the whole run, at most 8192 MiB, zero out-of-memory errors. For C6 and up also log peak system RAM and swap; peak RAM must stay below the WSL2 cap minus 2 GiB.",
+   "report": "Report n, both tiers' pass rates with 95% Wilson CIs, the paired table (both pass, only upper, only lower, neither), passes per hour, decode tok/s, Wh per pass and peak VRAM MiB."
+  },
+  "excluded": [
+   {
+    "node": "test-gate",
+    "why": "measured negative, reverted"
+   },
+   {
+    "node": "tool-call-format",
+    "why": "measured negative, reverted"
+   }
+  ],
+  "tiers": [
+   {
+    "tier": "C0",
+    "name": "Baseline, partial offload",
+    "adds": "Starting point: the 8B model with part of its layers in system RAM.",
+    "confirm_node": "c0-anchor",
+    "config_file": "configs/C0.json",
+    "status": "measured on dev set; held-out anchor queued",
+    "heldout_result": null
+   },
+   {
+    "tier": "C1",
+    "name": "Full offload",
+    "adds": "All layers on the card, flash attention, 8-bit KV cache, context sized to the jobs.",
+    "confirm_node": "c1-anchor",
+    "config_file": "configs/C1.json",
+    "status": "measured on dev set; held-out anchor queued",
+    "heldout_result": null
+   },
+   {
+    "tier": "C2",
+    "name": "Agent loop and sampling fixes",
+    "adds": "C1 plus the loop-guard result and the winning sampler arm.",
+    "confirm_node": "c2-confirm",
+    "config_file": null,
+    "status": "TBD",
+    "heldout_result": null
+   },
+   {
+    "tier": "C3",
+    "name": "Planner thinking",
+    "adds": "C2 plus bounded thinking for the planner role, if it wins.",
+    "confirm_node": "agent-stack",
+    "config_file": null,
+    "status": "TBD",
+    "heldout_result": null
+   },
+   {
+    "tier": "C4",
+    "name": "Decode speed and concurrency",
+    "adds": "C3 plus speculative decoding and parallel slots, if they win.",
+    "confirm_node": "c4-confirm",
+    "config_file": null,
+    "status": "TBD",
+    "heldout_result": null
+   },
+   {
+    "tier": "C5",
+    "name": "Model or quant upgrade",
+    "adds": "C4 on a better quant or a newer small model, picked with the fit map.",
+    "confirm_node": "c5-confirm",
+    "config_file": null,
+    "status": "TBD",
+    "heldout_result": null
+   },
+   {
+    "tier": "C6",
+    "name": "Large MoE model",
+    "adds": "A 35B-total, 3B-active MoE model with experts in system RAM.",
+    "confirm_node": "c6-confirm",
+    "config_file": null,
+    "status": "TBD",
+    "heldout_result": null
+   },
+   {
+    "tier": "C7",
+    "name": "Bigger class capstone",
+    "adds": "The best large-model settings plus the agent fixes.",
+    "confirm_node": "bigger-class",
+    "config_file": null,
+    "status": "TBD",
+    "heldout_result": null
+   }
+  ]
  },
  "tiers": [
   {
    "id": "foundation",
    "title": "Foundation",
    "goal": "Know the stack, measure it the same way every time, and confirm the FP32-accumulate unlock."
+  },
+  {
+   "id": "configs",
+   "title": "Config tiers",
+   "goal": "Stack the wins into numbered configs C0 to C7. Each tier must beat the tier below on a frozen held-out task set."
   },
   {
    "id": "inference",
@@ -87,6 +193,11 @@
    "goal": "Measure energy per passing task. Do not tune power."
   },
   {
+   "id": "reliability",
+   "title": "Reliability",
+   "goal": "Keep the server up around the clock within stock limits: pause, restart, thermals, uptime."
+  },
+  {
    "id": "capstone",
    "title": "Capstones",
    "goal": "Combine the wins into a bigger model class and more useful work per Wh."
@@ -103,7 +214,8 @@
     "harness",
     "unlock-fp32acc",
     "ram-wsl-check",
-    "full-offload"
+    "full-offload",
+    "driver-inventory"
    ],
    "test": "Read-only queries: nvidia-smi (name, driver, power limit, VRAM), llama.cpp build number, model file. Record them in every session.",
    "metric": "Recorded fields present in each session meta file (yes/no).",
@@ -159,7 +271,8 @@
     "flash-attention",
     "full-offload",
     "failure-sort",
-    "power-log"
+    "power-log",
+    "heldout-set"
    ],
    "test": "llama-bench with -r 5 and 3 reps for raw speed. A 12-task agent coding bench (6 roles x 2 tasks, hidden checks) at n=3 per task (36 runs). Board power sampled every 5 s. Summaries with 95% confidence intervals.",
    "metric": "Pass rate with 95% CI, passes per hour, median output tok/s, board Wh per task, run-to-run spread.",
@@ -470,7 +583,10 @@
     "thinking-budget",
     "loop-guard",
     "parallel-slots",
-    "wh-per-pass"
+    "wh-per-pass",
+    "pause-handoff",
+    "thermal-soak",
+    "c1-anchor"
    ],
    "test": "llama-server -ngl 99 -fa on, context at p95 of real use (max 32k), KV q8_0/q8_0 (q4_0/q4_0 if it does not fit). Then the 36-run agent bench with board power logged from the first task.",
    "metric": "Agent median output tok/s, passes per hour, pass rate, Wh per pass, out-of-memory count.",
@@ -558,6 +674,16 @@
      "metric": "mma ratio FP32-acc / FP16-acc at bench start (unlock active)",
      "value": 1.0,
      "source": "results/full-offload.md"
+    },
+    {
+     "metric": "VRAM, server steady footprint (measured)",
+     "value": "6318 MiB: both the max and the median over 1485 one-second samples while the server ran. A second GPU log and the test-gate run agree. One sample of 6459 MiB at session start came from a concurrent CUDA context of the mma check, not from the server. C1 keeps 6459 MiB as its conservative 8 GB fit value.",
+     "source": "results/full-offload/power.csv (lab review)"
+    },
+    {
+     "metric": "server per-request timings (print_timing), about 2k context",
+     "value": "n=47: prefill median 2889 tok/s, decode median 63.90 tok/s (p10 to p90 63.71 to 64.15). About 6k context, n=20: prefill 2749, decode 57.66. Agent requests: decode 61.53.",
+     "source": "results/prefill-correction.md"
     }
    ],
    "confounds": [
@@ -586,7 +712,8 @@
    ],
    "unlocks": [
     "quant-choice",
-    "dense-newer"
+    "dense-newer",
+    "parallel-slots"
    ],
    "test": "Qwen3-8B at Q4_K_M, Q5_K_M, Q6_K and Q8_0, Qwen3.5-9B Q4_K_M, a 4B-class and a 14B-class Q4_K_M, all layers on the GPU, FA on. For each KV pair (f16, q8_0, q4_0), find the largest ctx that loads and serves a 512-token prompt. Record peak VRAM and llama-bench pp512/tg128 (n=3).",
    "metric": "Max ctx, VRAM MiB, pp512 and tg128 tok/s.",
@@ -596,7 +723,8 @@
    "confounds": [
     "The display must be off the card, or the free VRAM is lower. Label it.",
     "Label: fit-map speeds (pp512, tg128) are measured at llama-bench's short context (512-token prompt, 128 generated tokens), not at the largest context that fits. Speed at the max context is lower.",
-    "Label: the on-disk lab Qwen3-8B Q4_K_M has the repo file's size (5027783488 bytes) but not its sha256 (on-disk begins 9180c8dd, Qwen/Qwen3-8B-GGUF begins d98cdcbd). Check pending: fit-map benches the on-disk copy and the repo copy under identical settings; if they differ, the chain holds after fit-map for review before earlier 8B results are relied on."
+    "Label: the on-disk lab Qwen3-8B Q4_K_M has the repo file's size (5027783488 bytes) but not its sha256 (on-disk begins 9180c8dd, Qwen/Qwen3-8B-GGUF begins d98cdcbd). Check pending: fit-map benches the on-disk copy and the repo copy under identical settings; if they differ, the chain holds after fit-map for review before earlier 8B results are relied on.",
+    "Method: report prefill and decode from the server per-request timings (server.log print_timing), not tokens over request wall time. The tokbench figures (prefill 442 tok/s at 2k and 1844 at 6k; decode 54.2 at 2k) folded decode or time to first token into the rate. Server per-request timings at full offload: about 2k context, n=47: prefill median 2889 tok/s, decode median 63.90 tok/s (p10 to p90 63.71 to 64.15); about 6k context, n=20: prefill 2749, decode 57.66; agent requests: decode 61.53 (lab-reported, source: results/prefill-correction.md)."
    ],
    "safety_notes": [
     "No power or clock changes."
@@ -634,8 +762,10 @@
     "full-offload",
     "fit-map"
    ],
-   "unlocks": [],
-   "test": "Same model at Q4_K_M, IQ4_XS and Q5_K_M (if it fits). llama-bench, then the 36-run agent bench at the full-offload settings.",
+   "unlocks": [
+    "c5-confirm"
+   ],
+   "test": "Other weight quants of the same model that fit at full offload. llama-bench, then the 36-run agent bench.",
    "metric": "Pass rate, passes per hour, decode tok/s, VRAM headroom.",
    "target": "Target: pick the quant with the most passes per hour. No out-of-memory errors.",
    "status": "queued",
@@ -654,16 +784,15 @@
     "full-offload"
    ],
    "unlocks": [
-    "spec-draft"
+    "spec-draft",
+    "c4-confirm"
    ],
-   "test": "Turn on the n-gram lookup mode of your llama.cpp build (check llama-server --help). Run the token bench and the 36-run agent bench.",
+   "test": "Speculative decoding with no draft model. Token bench and 36-run agent bench.",
    "metric": "Agent decode tok/s, draft acceptance rate, pass rate, Wh per pass.",
    "target": "Target: agent decode at least 1.3x with the same pass rate.",
    "status": "queued",
    "result": null,
-   "confounds": [
-    "Gains drop when the model thinks before it writes code (Fronde report)."
-   ],
+   "confounds": [],
    "safety_notes": []
   },
   {
@@ -675,7 +804,7 @@
     "spec-ngram"
    ],
    "unlocks": [],
-   "test": "llama-server -md Qwen3-0.6B-Q8_0.gguf with a draft length of 8-12, if VRAM allows at full offload.",
+   "test": "Speculative decoding with a small draft model, if VRAM allows at full offload. Token bench and agent bench.",
    "metric": "Agent decode tok/s, acceptance rate, VRAM, pass rate.",
    "target": "Target: agent decode at least 1.3x over n-gram mode or over no speculation.",
    "status": "queued",
@@ -689,19 +818,21 @@
    "id": "dense-newer",
    "tier": "inference",
    "title": "Newer small dense model at full offload",
-   "goal": "Test whether a newer small model (Qwen3.5-9B) passes more tasks at a similar speed.",
+   "goal": "Test whether a newer small model passes more tasks at a similar speed.",
    "prereqs": [
     "full-offload",
     "fit-map"
    ],
-   "unlocks": [],
-   "test": "Qwen3.5-9B Q4_K_M at -ngl 99. Check the chat and tool-call template. llama-bench pp512/pp4096/tg128, then the 36-run agent bench.",
+   "unlocks": [
+    "c5-confirm"
+   ],
+   "test": "A newer small model at full offload. Check its chat and tool-call template. llama-bench, then the 36-run agent bench.",
    "metric": "Pass rate, decode tok/s, prefill tok/s.",
    "target": "Target: at least 10 of 36 passes at 40 tok/s or more.",
    "status": "queued",
    "result": null,
    "confounds": [
-    "Its hybrid layers may lack a fast CUDA prefill path in this build (llama.cpp issue #22967)."
+    "A newer architecture may lack a fast CUDA path in this llama.cpp build."
    ],
    "safety_notes": []
   },
@@ -717,40 +848,24 @@
     "offload-curve"
    ],
    "unlocks": [
-    "bigger-class"
+    "bigger-class",
+    "c6-confirm"
    ],
-   "test": "Qwen3.6-35B-A3B UD-IQ4_XS (unsloth GGUF, 17.7 GB), same llama.cpp build. 1) llama-bench sweep at --n-cpu-moe 24, 27 and 30 (pp512, pp4096, tg128), with RAM, swap and VRAM logged. 2) Server fit ladder: ctx 16384 with KV q8_0, then KV q4_0, then ctx 12288, then ctx 8192. Each step must pass health, a 6000-token request and the VRAM and RAM limits. 3) 36-run core agent bench on the best fitting step. 4) Restore the Qwen3-8B best config and verify it, also on failure.",
-   "metric": "llama-bench pp512, pp4096 and tg128 per n-cpu-moe, with RAM and VRAM peaks. Agent bench: passes per hour, pass rate, median output tok/s, board Wh per task and per pass, RAM available minimum, swap use, truncations per role.",
+   "test": "A 35B-total, 3B-active MoE model with part of its experts in system RAM. A speed sweep, a context fit check, then the 36-run agent bench. Restore and verify the 8B config after.",
+   "metric": "Speed per expert-offload setting (pp512, pp4096, tg128) with RAM and VRAM peaks. Agent bench: passes per hour, pass rate, median output tok/s, board Wh per task and per pass, RAM minimum, swap use, truncations per role.",
    "target": "Target: at least 10 of 36 passes and agent decode at least 18 tok/s. A win does not replace the best config, because the model changes.",
    "status": "queued",
    "result": null,
    "confounds": [
     "CPU-side experts compete with build and test jobs for the CPU.",
-    "Public speed reports come from other machines with different RAM.",
-    "The thinking-off template path and the 8B sampler defaults (temp 0.2, top-p 0.95, top-k 20) are kept. The model card suggests other sampler values (GGUF default temp 1.0, top-p 0.95, top-k 20).",
-    "The model is served under two aliases, its own name and the 8B id that pi sends, so pi and the harness need no change. Logs show the 8B id in requests.",
-    "The download ran during the tool-call-format and loop-guard benches, throttled (about 30 MB/s, idle IO class, lowest CPU priority). Its time window is logged with the node.",
-    "At 16384 context the KV cache is small (10 full-attention layers with 2 KV heads), so context is unlikely to limit the fit. Expert RAM is the tight resource under the 23 GiB WSL2 cap.",
-    "No slot restore: the prompt cache starts cold.",
-    "System RAM risk: expert weights in RAM can push the 23 GiB WSL2 VM into swap."
+    "Public speed reports come from other machines with different RAM."
    ],
    "safety_notes": [
-    "Runs at the 24 GB WSL2 memory cap. A WSL2 restart stops lab services.",
+    "Runs at a raised WSL2 memory cap. A WSL2 restart stops lab services.",
     "Do not reboot Windows for a WSL2 change.",
-    "Check the mma ratio after any WSL2 restart.",
-    "Only the lab server is stopped and restarted; never WSL2. No WSL2 or .wslconfig change.",
     "The node halts the chain if the 8B restore cannot be verified."
    ],
-   "public_note": "The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB).",
-   "model_file": {
-    "repo": "unsloth/Qwen3.6-35B-A3B-GGUF",
-    "file": "Qwen3.6-35B-A3B-UD-IQ4_XS.gguf",
-    "size_bytes": 17730509792,
-    "sha256": "649d7508507b84638732c4f52c24c8b15843c6dca2f3ff793ae07c14a67ebbb3",
-    "gguf": "arch qwen35moe, 40 blocks (full attention every 4th, the rest linear attention), 256 experts, 8 active, 2 KV heads of 256, file_type 30 (IQ4_XS)",
-    "why": "The requested quant exists under that exact name in the unsloth repo. The official Qwen GGUF repo is not public under that name."
-   },
-   "launcher": "ready (lab chain), runs after thinking-budget"
+   "public_note": "The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
   },
   {
    "id": "fp16-workloads",
@@ -957,62 +1072,30 @@
    "id": "sampler",
    "tier": "agent",
    "title": "Sampler settings",
-   "goal": "Use Qwen3's recommended non-thinking sampler instead of the lab defaults, and test presence penalty.",
+   "goal": "Test recommended sampler settings against the lab defaults.",
    "prereqs": [
     "failure-sort",
     "full-offload"
    ],
    "unlocks": [
-    "agent-stack"
+    "agent-stack",
+    "c2-confirm"
    ],
-   "test": "Two arms, 36-run core agent bench each, on the best config at launch (both arms share one base). sampler-a: Qwen3 non-thinking set (temperature 0.7, top-p 0.8, top-k 20), except that min-p stays at the server default 0.05; presence penalty 0. sampler-b: the same set with presence penalty 1.5. Label both 'Qwen3 set, except min-p'. Baseline: full-offload defaults, temperature 0.2, top-p 0.95, top-k 20, min-p 0.05, presence penalty 0. The params are sent per request through a bench-only proxy. No server change. A preflight request checks the server's slot params before the bench starts.",
+   "test": "Two sampler arms, sent per request with no server change. 36-run core agent bench on the best config. Each arm is compared with the same base run.",
    "metric": "Passes per hour (decision), pass rate, loop events per run, tool-call errors, Wh per task, truncations per role.",
    "target": "Keep an arm only if its passes per hour beat the base config. If both do, keep the higher one. Loop events and pass rate are reported, not used to decide.",
    "status": "queued",
    "result": null,
    "confounds": [
-    "The thinking-mode set (temperature 0.6, top-p 0.95, top-k 20, min-p 0) does not apply here, because thinking is off for every role in both arms. The earlier test text used it with presence 1.5.",
-    "The arms run one after the other, not interleaved. Each is compared with the same base run.",
-    "Min-p stays at the server default 0.05. Qwen3's own set uses min-p 0, so the arms are 'Qwen3 set, except min-p'."
+    "The arms run one after the other, not interleaved. Each is compared with the same base run."
    ],
-   "safety_notes": [],
-   "arms": [
-    {
-     "id": "sampler-a",
-     "label": "Qwen3 set, except min-p",
-     "set": {
-      "temperature": 0.7,
-      "top_p": 0.8,
-      "top_k": 20,
-      "min_p": 0.05,
-      "presence_penalty": 0
-     }
-    },
-    {
-     "id": "sampler-b",
-     "label": "Qwen3 set, except min-p",
-     "set": {
-      "temperature": 0.7,
-      "top_p": 0.8,
-      "top_k": 20,
-      "min_p": 0.05,
-      "presence_penalty": 1.5
-     }
-    }
-   ],
-   "baseline_sampler": {
-    "temperature": 0.2,
-    "top_k": 20,
-    "top_p": 0.95,
-    "presence_penalty": 0,
-    "min_p": 0.05
-   }
+   "safety_notes": []
   },
   {
    "id": "thinking-budget",
    "tier": "agent",
    "title": "Planner-only thinking",
-   "goal": "Test whether thinking helps the planner role: thinking on for pm only, with a bounded reasoning budget.",
+   "goal": "Test whether bounded thinking helps the planner role.",
    "prereqs": [
     "failure-sort",
     "full-offload"
@@ -1020,7 +1103,7 @@
    "unlocks": [
     "agent-stack"
    ],
-   "test": "Thinking on for the pm role only: enable_thinking with a 1024-token thinking budget per request, through a bench-only proxy. Every other role stays thinking-off. The server stays thinking-off by default, with no server change. A preflight checks the per-request override before the bench and stops the node if it fails. 36-run core agent bench on the best config.",
+   "test": "Thinking on for one role only, with a bounded budget, sent per request. Every other role stays thinking-off. 36-run core agent bench on the best config.",
    "metric": "Passes per hour, pass rate (overall and pm), board Wh per task, truncated tool calls and length stops per role (baseline 9 of 363 calls in the full-offload run: write 5, edit 4).",
    "target": "Keep only if passes per hour beat the base config. Report the pm pass rate and pm truncations separately.",
    "status": "queued",
@@ -1032,9 +1115,7 @@
     }
    ],
    "confounds": [
-    "Thinking tokens share pm's 4096-token output cap. pm truncations are logged, not capped.",
-    "If the server cannot switch thinking per request, the preflight stops the node before the bench. It does not fall back to a server-wide change.",
-    "pm keeps the base sampler. The thinking-mode sampler set is not applied, so only thinking changes."
+    "Thinking tokens share the role output cap. Truncations are logged per role."
    ],
    "safety_notes": []
   },
@@ -1048,9 +1129,10 @@
     "full-offload"
    ],
    "unlocks": [
-    "agent-stack"
+    "agent-stack",
+    "c2-confirm"
    ],
-   "test": "After 3 identical tool calls, reset the turn with a short note to the agent. 36-run agent bench.",
+   "test": "A harness change that stops repeated identical tool calls. 36-run agent bench.",
    "metric": "Loop events per run, pass rate, wall time.",
    "target": "Target: loop events cut by half.",
    "status": "in_progress",
@@ -1061,22 +1143,24 @@
   {
    "id": "agent-stack",
    "tier": "agent",
-   "title": "Stacked agent fixes on a held-out set",
+   "title": "Agent stack (C3 confirm)",
    "goal": "Combine the fixes that helped and check them on tasks that were not used to tune them.",
    "prereqs": [
     "test-gate",
     "tool-call-format",
     "sampler",
     "thinking-budget",
-    "loop-guard"
+    "loop-guard",
+    "c2-confirm"
    ],
    "unlocks": [
     "bigger-class",
-    "useful-work-per-wh"
+    "useful-work-per-wh",
+    "c4-confirm"
    ],
-   "test": "Turn on all fixes that won. Run the 36-run bench and a held-out task set.",
-   "metric": "Pass rate on the tuned set and on the held-out set, reported apart.",
-   "target": "Target: at least 10 of 36 passes (one-sided Fisher p about 0.03 vs 3 of 36).",
+   "test": "Tier C3 on the 36-run bench and the held-out set against C2. Apply the tier pass criteria.",
+   "metric": "Pass rate on the tuned set and on the held-out set, reported apart. Passes per hour, Wh per pass, peak VRAM MiB.",
+   "target": "Target: meets the tier pass criteria against C2 on the held-out set.",
    "status": "queued",
    "result": null,
    "confounds": [
@@ -1090,19 +1174,22 @@
    "title": "Parallel slots",
    "goal": "Serve 2-4 requests at once to fill idle GPU time.",
    "prereqs": [
-    "full-offload"
+    "full-offload",
+    "fit-map"
    ],
    "unlocks": [
     "agent-workers",
-    "best-of-n"
+    "best-of-n",
+    "c4-confirm"
    ],
-   "test": "llama-server --parallel 1, 2, 4 with total context = slots x per-slot context. Token bench at each setting.",
+   "test": "Serve more than one request at once, with a fixed context per slot. A slot count runs only if the fit map shows its KV cache fits; otherwise it is recorded as \"does not fit\". Token bench at each setting. Log VRAM, power and temperature.",
    "metric": "Aggregate tok/s, per-request tok/s, aggregate tok/s per board W.",
-   "target": "Target: aggregate tok/s per board W at least 1.5x at 4 slots.",
+   "target": "Target: aggregate tok/s per board W at least 1.5x of 1 slot, at the largest slot count that fits.",
    "status": "queued",
    "result": null,
    "confounds": [
-    "Half-full batches can be the worst case (public reports)."
+    "Half-full batches can be the worst case (public reports).",
+    "8192 per slot covers the agent-task context p95 of about 6.2k tokens (6248, n=60, results/full-offload.md)."
    ],
    "safety_notes": [
     "Log power and temperature. Stop on any screen blanking."
@@ -1141,7 +1228,7 @@
    "unlocks": [
     "useful-work-per-wh"
    ],
-   "test": "Best-of-3 on implementer and debugger roles. Pick the attempt whose build, vet and visible tests pass. Never use the hidden check.",
+   "test": "Several attempts per task on the weak roles. Pick one using only visible checks. Never use the hidden check.",
    "metric": "Role pass rate, passes per hour, Wh per pass.",
    "target": "Target: implementer + debugger from 0 of 12 to at least 3 of 12.",
    "status": "queued",
@@ -1221,16 +1308,17 @@
   {
    "id": "bigger-class",
    "tier": "capstone",
-   "title": "Bigger model class on 8 GB",
+   "title": "Bigger class (C7 confirm)",
    "goal": "Run a 35B-class model on 8 GB that beats the 8B baseline on passes per hour.",
    "prereqs": [
     "moe-offload",
-    "agent-stack"
+    "agent-stack",
+    "c6-confirm"
    ],
    "unlocks": [],
-   "test": "Best MoE settings plus the stacked agent fixes. 36-run bench and held-out set.",
+   "test": "Tier C7 on the held-out set against C6. Apply the tier pass criteria.",
    "metric": "Pass rate, passes per hour, Wh per pass vs the 8B stack.",
-   "target": "Target: more passes per hour than the best 8B stack.",
+   "target": "Target: meets the tier pass criteria against C6, and more passes per hour than the best 8B tier.",
    "status": "queued",
    "result": null,
    "confounds": [],
@@ -1258,102 +1346,504 @@
    "safety_notes": [
     "No power changes."
    ]
+  },
+  {
+   "id": "pause-handoff",
+   "tier": "reliability",
+   "title": "Pause handoff with no lost state",
+   "goal": "Give the GPU to another app (for example a game) and take it back with no lost model state.",
+   "prereqs": [
+    "full-offload"
+   ],
+   "unlocks": [
+    "watchdog-restart",
+    "uptime-slo",
+    "auto-pause-trigger"
+   ],
+   "test": "Install the prepared 24/7 package: slot save on pause, slot restore on start. Use the full-offload config. Put a long context in slot 0 with a known fact in the middle. Run 20 pause and start cycles through the package commands. After each restore, ask for the fact. This tests the pause and start path only: the game watcher logs games but does not pause the server (auto-pause-trigger).",
+   "metric": "Pause wall s, resume wall s, slot save and restore ms, slot file MB, restores that answer the fact correctly, time to first token after restore vs cold re-read, VRAM after stop.",
+   "target": "Target: 20 of 20 restores answer the fact correctly. Pause and resume each under 10 s wall. VRAM after stop under 1.5 GB.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "An earlier pause bench at -ngl 30, ctx 65536, KV q4_0/q4_0 measured pause under 7 s wall and slot restore in 180 to 391 ms (source: results/pause-bench.md). The full-offload config uses KV q8_0/q8_0, so slot files are larger. Measure again at this config.",
+    "The package defaults (ctx 24576, -ngl 30) are not the full-offload config. Set the full-offload values before the test.",
+    "Lab finding: the game watcher only logs a game start. It does not call the pause. The automatic trigger is a separate node, auto-pause-trigger."
+   ],
+   "safety_notes": [
+    "Stop on any screen blanking. No power, clock or undervolt changes.",
+    "The watcher never stops or touches the other app. It only pauses and resumes the model server."
+   ]
+  },
+  {
+   "id": "watchdog-restart",
+   "tier": "reliability",
+   "title": "Watchdog and auto-restart",
+   "goal": "Bring the server back by itself after a crash, with state restored.",
+   "prereqs": [
+    "pause-handoff"
+   ],
+   "unlocks": [
+    "long-soak"
+   ],
+   "test": "Run the server under the package supervisor (restart on failure, back-off from 10 s to 5 min). Kill the server process 10 times: idle, mid-request and mid-save. Measure time to healthy and the restore result after each kill.",
+   "metric": "Time to healthy s (median, max), restarts that restored state, requests lost per kill, supervisor give-ups, corrupt slot files.",
+   "target": "Target: 10 of 10 kills back healthy in under 30 s. No restart loop. Zero corrupt slot files.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The supervisor gives up after 8 failures in 15 min by design. A give-up is a result, not a fault of the test.",
+    "A kill mid-save can leave a partial slot file. Count it, and check that restore falls back to a cold start.",
+    "Expected finding: the systemd back-off (10 s growing to 5 min over 6 steps) will probably miss the 30 s target from kill 3 on. Record time to healthy and the back-off step for each kill; a miss caused by the back-off is a result, not a test fault."
+   ],
+   "safety_notes": [
+    "Kill only the model server process. No reboot, shutdown or sleep."
+   ]
+  },
+  {
+   "id": "thermal-soak",
+   "tier": "reliability",
+   "title": "Thermals soak within stock limits",
+   "goal": "Show the card holds its speed under hours of load at stock limits.",
+   "prereqs": [
+    "full-offload"
+   ],
+   "unlocks": [
+    "long-soak"
+   ],
+   "test": "Run the C1 config with the agent task mix for 4 h, requests sent straight to the server with no request proxy. Read temperature, board W, clocks and throttle reasons every 5 s. Logging only.",
+   "metric": "Max and p95 GPU temperature C, share of samples with each throttle reason, decode tok/s in the first hour vs the last hour, mean board W.",
+   "target": "Target: last-hour decode tok/s within 5% of the first hour. No thermal throttle reason. No screen blanking.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Room temperature changes the result. Log it if a sensor is there, or label it as not logged.",
+    "Full offload runs near the 220 W power limit (203.1 W mean, results/full-offload.md). A software power-cap throttle reason is the stock limit at work, not a thermal fault. Report it apart from thermal reasons."
+   ],
+   "safety_notes": [
+    "Read-only logging. No power-limit, clock, fan or undervolt changes.",
+    "Stop on any screen blanking."
+   ]
+  },
+  {
+   "id": "long-soak",
+   "tier": "reliability",
+   "title": "Long soak test",
+   "goal": "Find faults that show only after a full day of load.",
+   "prereqs": [
+    "watchdog-restart",
+    "thermal-soak"
+   ],
+   "unlocks": [],
+   "test": "Run the C1 config for 24 h with a mixed request load sent straight to the server, no request proxy: short chat, 2000-token and 6000-token prompts, agent tasks. Pause and resume at random times. Log errors, restarts, VRAM and system RAM every minute.",
+   "metric": "Errors per 1000 requests, restarts, decode tok/s drift per hour, VRAM and system RAM growth per hour, slot disk use.",
+   "target": "Target: under 1 error per 1000 requests. VRAM and RAM growth under 1% per hour. Each unplanned restart recovered by the watchdog.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The request mix sets the result. Publish the mix with the result.",
+    "Runs last, so it does not hold up any tier."
+   ],
+   "safety_notes": [
+    "Same limits as thermal-soak. Stop on any screen blanking."
+   ]
+  },
+  {
+   "id": "uptime-slo",
+   "tier": "reliability",
+   "title": "Uptime and SLO metrics",
+   "goal": "Observe how much of each day the server is up and inside its latency targets. Background observer: it blocks no node.",
+   "prereqs": [
+    "pause-handoff"
+   ],
+   "unlocks": [],
+   "test": "Start the 24/7 package metrics (one sample per minute, daily rollups) after pause-handoff and leave them on for at least 7 days while other nodes run. Compute uptime outside pauses, pause minutes, restore results and request latency. The chain does not wait for it.",
+   "metric": "Server up share outside pauses, paused minutes per day, restores ok and failed, health timeouts, p50 and p95 time to first token, decode tok/s per request.",
+   "target": "Target: up share outside pauses at least 99%. All restores ok. p95 time to first token under 5 s at 2000-token prompts.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "WSL nvidia-smi utilization counts the whole GPU, Windows apps too. Count GPU busy only over unpaused minutes (source: the 24/7 package notes)."
+   ],
+   "safety_notes": [
+    "Logging only."
+   ]
+  },
+  {
+   "id": "driver-inventory",
+   "tier": "foundation",
+   "title": "Driver, CUDA and firmware version inventory",
+   "goal": "Record the driver, CUDA and firmware versions in use, and list newer driver and CUDA versions as research entries.",
+   "prereqs": [
+    "stack-baseline"
+   ],
+   "unlocks": [],
+   "test": "Read-only: record the Windows driver, the WSL CUDA driver and toolkit, the llama.cpp build and its CUDA version, and the VBIOS version string as reported by nvidia-smi. Research release notes for newer driver and CUDA versions. Install nothing.",
+   "metric": "Version table with the source of each value. Upgrade candidates with release-note claims that touch Ampere inference, each marked research only.",
+   "target": "Target: every version in use recorded with its source. No change made to the machine.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "A driver or CUDA upgrade is a research entry only here. Any upgrade test is a separate node with its own A/B and needs the owner's go."
+   ],
+   "safety_notes": [
+    "Read-only. No driver, CUDA or firmware install. No VBIOS flashing (out of scope). No power or clock changes."
+   ]
+  },
+  {
+   "id": "heldout-set",
+   "tier": "foundation",
+   "title": "Frozen held-out task set",
+   "goal": "Freeze a task set that is never used for tuning, so each config tier is judged on tasks it was not tuned on.",
+   "prereqs": [
+    "harness"
+   ],
+   "unlocks": [
+    "c0-anchor",
+    "c1-anchor"
+   ],
+   "test": "Write at least 72 new tasks in the bench format (6 roles x 12), each with a hidden check and a reference solution that passes it. Freeze them with a sha256 manifest. Validate every check against its reference solution and against an empty change. No tuning run may use these tasks.",
+   "metric": "Task count per role, checks that pass the reference and fail the empty change, manifest sha256.",
+   "target": "Target: at least 72 frozen tasks, 12 per role, 100% of checks valid.",
+   "status": "built, frozen, awaiting validation run on the test machine",
+   "result": "heldout-v1 frozen 2026-10-27: 72 tasks, 12 per role, 4 easy/4 medium/4 hard each. On the box: 72/72 references pass, 72/72 start states fail. Manifest sha256 dc99f4f60aa10a1f70457998dc40cfbf5774c0af962eedff080a0df462da3514 (505 files). Not yet run on the test machine.",
+   "confounds": [
+    "The 12-task dev set was used to tune every fix so far. Results on it can overfit.",
+    "Task difficulty sets the pass rate floor. Report per-role pass rates."
+   ],
+   "safety_notes": [
+    "Task writing is off the test machine. Check validation runs CPU only."
+   ]
+  },
+  {
+   "id": "c0-anchor",
+   "tier": "configs",
+   "title": "C0 held-out anchor",
+   "goal": "Measure tier C0 (partial offload baseline) on the held-out set.",
+   "prereqs": [
+    "heldout-set"
+   ],
+   "unlocks": [
+    "c1-anchor"
+   ],
+   "test": "Run C0 on the full held-out set, every task, with power logged from before the first task. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json.",
+   "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed.",
+   "target": "Target: all held-out runs completed (anchor). No pass criteria; this is the floor.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "C0 server args are inferred from the lab defaults at that time. Record the exact launch line this time."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes."
+   ]
+  },
+  {
+   "id": "c1-anchor",
+   "tier": "configs",
+   "title": "C1 held-out anchor",
+   "goal": "Measure tier C1 (full offload) on the held-out set.",
+   "prereqs": [
+    "heldout-set",
+    "c0-anchor",
+    "full-offload"
+   ],
+   "unlocks": [
+    "c2-confirm"
+   ],
+   "test": "Run C1 on the full held-out set with the same harness, task order and power logging as c0-anchor. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json.",
+   "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed.",
+   "target": "Target: all held-out runs completed (anchor), and meets the tier pass criteria against C0.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "C1 is free and public. It is the base for every higher tier."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes."
+   ]
+  },
+  {
+   "id": "c2-confirm",
+   "tier": "configs",
+   "title": "C2 confirm",
+   "goal": "Confirm tier C2 (agent loop and sampling fixes) against the tier below on the held-out set.",
+   "prereqs": [
+    "c1-anchor",
+    "loop-guard",
+    "sampler"
+   ],
+   "unlocks": [
+    "agent-stack"
+   ],
+   "test": "Run tier C2 on the frozen held-out set with the same harness, task order and power logging as the tier below. Apply the tier pass criteria.",
+   "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per pass, peak VRAM MiB.",
+   "target": "Target: meets the tier pass criteria against the tier below.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes. Stop on any screen blanking."
+   ]
+  },
+  {
+   "id": "c4-confirm",
+   "tier": "configs",
+   "title": "C4 confirm",
+   "goal": "Confirm tier C4 (decode speed-up and concurrency) against the tier below on the held-out set.",
+   "prereqs": [
+    "agent-stack",
+    "spec-ngram",
+    "parallel-slots"
+   ],
+   "unlocks": [
+    "c5-confirm"
+   ],
+   "test": "Run tier C4 on the frozen held-out set with the same harness, task order and power logging as the tier below. Apply the tier pass criteria.",
+   "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per pass, peak VRAM MiB.",
+   "target": "Target: meets the tier pass criteria against the tier below.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes. Stop on any screen blanking."
+   ]
+  },
+  {
+   "id": "c5-confirm",
+   "tier": "configs",
+   "title": "C5 confirm",
+   "goal": "Confirm tier C5 (model or quant upgrade) against the tier below on the held-out set.",
+   "prereqs": [
+    "c4-confirm",
+    "quant-choice",
+    "dense-newer"
+   ],
+   "unlocks": [
+    "c6-confirm"
+   ],
+   "test": "Run tier C5 on the frozen held-out set with the same harness, task order and power logging as the tier below. Apply the tier pass criteria.",
+   "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per pass, peak VRAM MiB.",
+   "target": "Target: meets the tier pass criteria against the tier below.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes. Stop on any screen blanking."
+   ]
+  },
+  {
+   "id": "c6-confirm",
+   "tier": "configs",
+   "title": "C6 confirm",
+   "goal": "Confirm tier C6 (larger MoE model with experts in system RAM) against the tier below on the held-out set.",
+   "prereqs": [
+    "c5-confirm",
+    "moe-offload"
+   ],
+   "unlocks": [
+    "bigger-class"
+   ],
+   "test": "Run tier C6 on the frozen held-out set with the same harness, task order and power logging as the tier below. Apply the tier pass criteria.",
+   "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per pass, peak VRAM MiB.",
+   "target": "Target: meets the tier pass criteria against the tier below.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes. Stop on any screen blanking."
+   ]
+  },
+  {
+   "id": "auto-pause-trigger",
+   "tier": "reliability",
+   "title": "Automatic pause on game start",
+   "goal": "Make the game watcher pause the model server on a game start and start it again after the game exits.",
+   "prereqs": [
+    "pause-handoff"
+   ],
+   "unlocks": [],
+   "test": "Turn on the watcher pause action. Start and quit a test game 10 times, and leave the PC idle for 1 h with no game. Log each detected start, pause, exit and start, with timestamps.",
+   "metric": "Seconds from game start to server paused, seconds from game exit to server healthy, missed pauses, false pauses in the idle hour, restores that answer the known fact.",
+   "target": "Target: 10 of 10 game starts paused within 15 s, 10 of 10 starts healthy within 90 s of exit, 0 false pauses.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Game detection depends on process names and fullscreen state. Anti-cheat clients left open all day can hold the pause."
+   ],
+   "safety_notes": [
+    "The watcher never stops or touches the game. It only pauses and starts the model server. No power or clock changes."
+   ]
   }
  ],
  "next_order": [
   {
    "rank": 1,
+   "id": "heldout-set",
+   "reason": "Frozen held-out set. Every tier is judged on it."
+  },
+  {
+   "rank": 2,
+   "id": "c0-anchor",
+   "reason": "C0 floor on the held-out set."
+  },
+  {
+   "rank": 3,
+   "id": "c1-anchor",
+   "reason": "C1 on the held-out set. Base for every higher tier."
+  },
+  {
+   "rank": 4,
    "id": "loop-guard",
    "reason": "In progress. 28 of 36 runs in the full-offload run had a loop event."
   },
   {
-   "rank": 2,
-   "id": "fit-map",
-   "reason": "The first question of 8 GB owners: what fits fully on the card. It gives max ctx, peak VRAM and speed for each model, quant and KV cache type."
-  },
-  {
-   "rank": 3,
-   "id": "offload-curve",
-   "reason": "Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30."
-  },
-  {
-   "rank": 4,
-   "id": "moe-offload",
-   "reason": "Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
-  },
-  {
    "rank": 5,
-   "id": "quant-choice",
-   "reason": "Which quant to pick at full offload. It uses the fit-map limits."
+   "id": "sampler",
+   "reason": "Two sampler arms, per request, no server change."
   },
   {
    "rank": 6,
-   "id": "dense-newer",
-   "reason": "Which newer small model to pick at full offload. It uses the fit-map limits."
+   "id": "c2-confirm",
+   "reason": "C2 against C1 on the held-out set."
   },
   {
    "rank": 7,
-   "id": "spec-ngram",
-   "reason": "No VRAM cost. Can speed up code and JSON output."
+   "id": "thinking-budget",
+   "reason": "Bounded thinking for the planner role, per request."
   },
   {
    "rank": 8,
-   "id": "sampler",
-   "reason": "Two arms: sampler-a (presence 0) and sampler-b (presence 1.5). Qwen3 set, except min-p. Per request, no server change.",
-   "arms": [
-    "sampler-a",
-    "sampler-b"
-   ]
+   "id": "agent-stack",
+   "reason": "C3 against C2 on the held-out set."
   },
   {
    "rank": 9,
-   "id": "thinking-budget",
-   "reason": "pm only, 1024-token thinking budget per request. pm is the role that passes most."
+   "id": "spec-ngram",
+   "reason": "Short run with no VRAM cost."
   },
   {
    "rank": 10,
-   "id": "wh-per-pass",
-   "reason": "Free with each bench once power logging starts before task 1."
+   "id": "fit-map",
+   "reason": "Before parallel-slots: the largest slot count runs only if the fit map shows the KV fits. Also settles the model file check."
   },
   {
    "rank": 11,
    "id": "parallel-slots",
-   "reason": "At partial offload, mean board power was 56.43 W of a 220 W limit. At full offload it is 203.1 W, so the gain from more slots is less sure."
+   "reason": "Fixed context per slot; the largest slot count only if it fits."
   },
   {
    "rank": 12,
-   "id": "agent-stack",
-   "reason": "Confirms the agent fixes on a held-out set."
+   "id": "c4-confirm",
+   "reason": "C4 against C3 on the held-out set."
   },
   {
    "rank": 13,
-   "id": "bigger-class",
-   "reason": "Capstone. Needs moe-offload and agent-stack measured."
+   "id": "quant-choice",
+   "reason": "Which quant to pick at full offload. It uses the fit-map limits."
   },
   {
    "rank": 14,
+   "id": "dense-newer",
+   "reason": "Which newer small model to pick at full offload. It uses the fit-map limits."
+  },
+  {
+   "rank": 15,
+   "id": "c5-confirm",
+   "reason": "C5 against C4 on the held-out set."
+  },
+  {
+   "rank": 16,
+   "id": "offload-curve",
+   "reason": "Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30."
+  },
+  {
+   "rank": 17,
+   "id": "moe-offload",
+   "reason": "Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
+  },
+  {
+   "rank": 18,
+   "id": "c6-confirm",
+   "reason": "C6 against C5 on the held-out set."
+  },
+  {
+   "rank": 19,
+   "id": "pause-handoff",
+   "reason": "Pause and start path of the prepared package (manual trigger)."
+  },
+  {
+   "rank": 20,
+   "id": "uptime-slo",
+   "reason": "Background observer: start it, then go on. It blocks nothing."
+  },
+  {
+   "rank": 21,
+   "id": "auto-pause-trigger",
+   "reason": "The watcher only logs games today. This makes it pause and start the server."
+  },
+  {
+   "rank": 22,
+   "id": "thermal-soak",
+   "reason": "C1, no request proxy, 4 h. Full offload runs at 203.1 W mean of a 220 W limit. Logging only."
+  },
+  {
+   "rank": 23,
+   "id": "watchdog-restart",
+   "reason": "Crash recovery with state restored. Back-off is expected to miss 30 s from kill 3 on."
+  },
+  {
+   "rank": 24,
+   "id": "driver-inventory",
+   "reason": "Read-only version inventory. Upgrade candidates are research entries only."
+  },
+  {
+   "rank": 25,
+   "id": "wh-per-pass",
+   "reason": "Free with each bench once power logging starts before task 1."
+  },
+  {
+   "rank": 26,
    "id": "spec-draft",
    "reason": "Bigger speed-up, but it costs VRAM."
   },
   {
-   "rank": 15,
+   "rank": 27,
    "id": "best-of-n",
    "reason": "Uses spare slots to lift the 0-pass roles."
   },
   {
-   "rank": 16,
+   "rank": 28,
    "id": "agent-workers",
    "reason": "More jobs per hour if the CPU keeps up."
   },
   {
-   "rank": 17,
+   "rank": 29,
    "id": "fp16-workloads",
    "reason": "The only place the unlock pays. Unlocked-only numbers until locked-ab runs."
   },
   {
-   "rank": 18,
+   "rank": 30,
+   "id": "bigger-class",
+   "reason": "Capstone and C7 confirm against C6."
+  },
+  {
+   "rank": 31,
    "id": "useful-work-per-wh",
    "reason": "Capstone. Runs when its prereqs are measured."
+  },
+  {
+   "rank": 32,
+   "id": "long-soak",
+   "reason": "Last. 24 h on C1, no request proxy."
   }
  ],
  "best_config": {
