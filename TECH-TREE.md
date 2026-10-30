@@ -1,6 +1,6 @@
 # RTX 3070 tech tree
 
-Version 1.5.3. Updated 2026-10-29.
+Version 1.5.3. Updated 2026-10-30.
 
 This tree shows how to get the most real work from one RTX 3070 with 8 GB of VRAM. LHR cards are included. The work is local LLM inference and coding agents. Each node is one experiment. A node runs only when all of its prereqs are measured. The machine-readable form is [`tech-tree.json`](tech-tree.json).
 

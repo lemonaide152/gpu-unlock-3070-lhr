@@ -1,7 +1,7 @@
 {
  "name": "RTX 3070 tech tree",
  "version": "1.5.3",
- "updated": "2026-10-29",
+ "updated": "2026-10-30",
  "scope": "Get the most real work from one RTX 3070 8 GB (LHR included) for local LLMs and agent work.",
  "results_dir": "results/",
  "status_values": {
