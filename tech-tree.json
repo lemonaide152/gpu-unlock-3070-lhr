@@ -1,6 +1,6 @@
 {
  "name": "RTX 3070 tech tree",
- "version": "1.5.10",
+ "version": "1.5.11",
  "updated": "2026-10-31",
  "scope": "Get the most real work from one RTX 3070 8 GB (LHR included) for local LLMs and agent work.",
  "results_dir": "results/",
@@ -1195,7 +1195,7 @@
    "test": "A harness change that stops repeated identical tool calls. 36-run agent bench.",
    "metric": "Loop events per run, pass rate, wall time.",
    "target": "Target: loop events cut by half.",
-   "status": "in_progress",
+   "status": "measured",
    "result": [
     {
      "metric": "mode",
@@ -1938,7 +1938,7 @@
     "Strata docs: under WSL the NVIDIA driver pins only about 1 GB, so KV streaming (split KV) is off and experts are copied from unpinned RAM, which makes prompts slower than on native Linux (Strata docs/DETAILS.md).",
     "Strata docs: a Flash-Next 125B pack fits when RAM is at least its experts plus about 10 GB. Experts in shard 1: Q2_0 34 GB, IQ2_XS 35.5 GB, Coder IQ1_M 23 GB. The second shard (28.8 GB) stays on the SSD (Strata docs/MODELS.md).",
     "Desk fit check (lab-reported estimate, not measured on the GPU): the 35B UD-Q4_K_XL file fits at 16K to 128K context with 2.2 to 5.5 GiB of RAM headroom. At 128K it needs --n-cpu-moe 34, about 7.25 GiB of VRAM and about 19.9 GiB of RAM.",
-    "Desk fit check (lab-reported estimate, not measured on the GPU): no 125B pack fits. Coder IQ1_M needs about 30.7 GiB of RAM against a 21.5 GiB budget. This is a negative result on paper."
+    "Desk fit check (lab-reported estimate, not measured on the GPU): no 125B pack fits. Coder IQ1_M is a 27.57 GiB model file plus a 26.82 GiB table file and needs about 31-33 GB of RAM (upstream and Strata docs), against a 21.5 GiB budget. This is a negative result on paper."
    ],
    "safety_notes": [
     "No power-limit, clock or undervolt changes.",
@@ -1962,7 +1962,8 @@
    "unlocks": [
     "strata-mtp-prefill",
     "c6s-confirm",
-    "strata-125b-probe"
+    "strata-125b-probe",
+    "strata-nokq-boot"
    ],
    "test": "The 35B MoE file on the Strata engine against plain llama.cpp with experts in system RAM. First a fixed boot search on dev prompts (expert slots from 10 down, at 16K then 8K); the first config that boots is frozen and llama.cpp is paired at the same context. Then speed probes, temperature-0 token agreement and one paired held-out run judged by the tier rule. If nothing boots at 8K or more, the result is a measured negative.",
    "metric": "Boot search log (ctx, slots, needed and free MiB per try), frozen config; Prefill and decode tok/s per point (median and range), agent decode tok/s, MTP acceptance, cold load s, temperature-0 agreement (%, first divergence), held-out paired pass table, McNemar p and passes/h per arm, peak VRAM MiB, peak RAM and swap, disk bytes written.",
@@ -2006,8 +2007,18 @@
     },
     {
      "metric": "verdict",
-     "value": "Measured negative: no Strata config boots at 8K or more. No A/B arm ran. strata-mtp-prefill and c6s-confirm are not formed (tier C6S not formed). Final: the port re-check found no void attempt (22 of 22 exited during load from the engine's own VRAM check)",
+     "value": "Measured negative for Strata default settings (int8 prompt kernels on): no config boots at 8K or more. No A/B arm ran. strata-mtp-prefill and c6s-confirm are not formed until strata-nokq-boot reports. Final: the port re-check found no void attempt (22 of 22 exited during load from the engine's own VRAM check)",
      "source": "results/strata-replicate.md"
+    },
+    {
+     "metric": "upstream comparison (desk)",
+     "value": "Upstream got the same \"1159 MiB needed\" error on the same model file. It booted only with the int8 (K-quant) prompt kernels off. The staging pair of these kernels is about 1127 of the 1159 MiB (estimate from source, prompt chunk 512 assumed)",
+     "source": "results/strata-2080-vs-3070.md"
+    },
+    {
+     "metric": "idle VRAM (desk)",
+     "value": "Upstream idles at 2 MiB, ours at 466 MiB. This difference covers the free-VRAM gap after the weights. The cause of our 466 MiB is unknown; the lab is checking",
+     "source": "results/strata-2080-vs-3070.md"
     }
    ],
    "confounds": [
@@ -2021,7 +2032,8 @@
     "strata-fit (locked mode, pre-swap): Strata did not boot at 16K with 10 or 4 expert slots (expert buffers need 1909 or 1460 MiB with 255 or 220 MiB free).",
     "The boot search ran post-swap (display off the 3070). Free VRAM after weights did not change from pre-swap.",
     "Port re-check done: strata-boot-search runs only the Strata engine, and it starts and polls one port (8011). All 22 attempts exited during load with the engine's own message \"not enough VRAM (1159 needed, 655 free)\". None was a load timeout. The verdict is final.",
-    "The same bug class (server on 8010, check on 8011) was found and fixed in the shared llama.cpp command-line path. That path never ran, so no result is affected."
+    "The same bug class (server on 8010, check on 8011) was found and fixed in the shared llama.cpp command-line path. That path never ran, so no result is affected.",
+    "Scope: the negative covers Strata default settings only (int8 prompt kernels on). The boot search did not turn these kernels off. strata-nokq-boot tests that."
    ],
    "safety_notes": [
     "No power-limit, clock or undervolt changes.",
@@ -2032,8 +2044,8 @@
     "Stop on any screen blanking under load and log power and temperature.",
     "Restore the C1 config after the run and verify it with one health request and one 6000-token request; halt the chain if the restore fails."
    ],
-   "public_note": "Measured negative (locked mode), final: the Strata engine does not boot the 35B on this card at 16K or 8K, with any expert slot count. All 22 attempts stopped during load at the engine's own VRAM check (1159 MiB needed, 655 MiB free). A script port check found no void attempt. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source",
-   "verdict": "negative (final)"
+   "public_note": "Measured negative (locked mode) for the default engine settings (int8 prompt kernels on): the Strata engine does not boot the 35B on this card at 16K or 8K, with any expert slot count. All 22 attempts stopped at the engine's own VRAM check (1159 MiB needed, 655 MiB free). Upstream got the same error on the same file and booted only with these kernels off. Their staging buffers are about 1127 of the 1159 MiB (estimate from source). A boot test with these kernels off is queued. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source",
+   "verdict": "negative (final) for Strata default settings (int8 prompt kernels on)"
   },
   {
    "id": "strata-mtp-prefill",
@@ -2042,7 +2054,8 @@
    "goal": "Measure the MTP draft and prompt-chunk settings on the Strata 35B config, the two techniques of the upstream recipe that the 35B engine path supports.",
    "prereqs": [
     "strata-replicate",
-    "c1-anchor"
+    "c1-anchor",
+    "strata-nokq-boot"
    ],
    "unlocks": [
     "c6s-confirm",
@@ -2065,7 +2078,8 @@
     "On the RTX 2080 125B config, fixing MTP and prompt batch sizing took short decode from about 24 to 31-33 tok/s and 16K prefill from 245 to 739 tok/s (reported upstream, not measured here)",
     "Strata docs (Qwen3.6 page): prompt chunk 512 gives text identical to the base engine; other chunk sizes change rounding.",
     "RTX 2080, same 35B file: chunk 1024 cut the expert slots that fit and decode fell, so it was reverted; chunk 2048 with 4 slots did not fit (reported upstream, not measured here)",
-    "MTP drafts run only when one request is active, unless batch drafts are turned on (Strata docs)."
+    "MTP drafts run only when one request is active, unless batch drafts are turned on (Strata docs).",
+    "Not formed until strata-nokq-boot boots. If it boots, the base is the strata-nokq-boot frozen config."
    ],
    "safety_notes": [
     "No power-limit, clock or undervolt changes.",
@@ -2095,7 +2109,7 @@
    "confounds": [
     "Strata docs: with a small card in low-RAM mode most experts come from the SSD and it is much slower.",
     "Strata docs: Gyro-S is the smallest Flash-Next option and has lower quality; Coder keeps 256 of 512 experts per layer and is weaker outside code.",
-    "Desk fit check (lab-reported estimate, not measured on the GPU): Coder IQ1_M needs about 30.7 GiB of RAM against a 21.5 GiB budget. A 125B download would also break the disk floor."
+    "Desk fit check (lab-reported estimate, not measured on the GPU): Coder IQ1_M is a 27.57 GiB model file plus a 26.82 GiB table file and needs about 31-33 GB of RAM (upstream and Strata docs), against a 21.5 GiB budget. A 125B download would also break the disk floor."
    ],
    "safety_notes": [
     "No power-limit, clock or undervolt changes.",
@@ -2258,7 +2272,8 @@
    ],
    "confounds": [
     "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates.",
-    "C6S and C6 use the same model family on different engines. When c6-confirm runs later, it also reports C6 against C6S."
+    "C6S and C6 use the same model family on different engines. When c6-confirm runs later, it also reports C6 against C6S.",
+    "Not formed until strata-nokq-boot boots and strata-mtp-prefill runs."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes. Stop on any screen blanking."
@@ -2407,7 +2422,8 @@
     "full-offload"
    ],
    "unlocks": [
-    "moe-offload"
+    "moe-offload",
+    "strata-nokq-boot"
    ],
    "test": "C1 full-offload config (llama-server -ngl 99 -fa on, the full-offload ctx and KV). Settled sampler: temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. sampler-b is off. Log the full launch line. 36-run core agent bench, power logged from before task 1. LOCKED, post-swap (display off the 3070), tagged with the in-session mma reading.",
    "metric": "Passes per hour, pass rate with 95% CI, median agent decode tok/s, loop events per run, truncated calls per role, board Wh per pass, peak VRAM MiB.",
@@ -2422,6 +2438,34 @@
     "No power, clock or undervolt changes."
    ],
    "public_note": "Queued. The C1 full-offload config on the dev bench in locked mode, as the same-lock-state base for later dev-bench results"
+  },
+  {
+   "id": "strata-nokq-boot",
+   "tier": "inference",
+   "title": "Strata boot with int8 prompt kernels off (35B MoE)",
+   "goal": "Find out if Strata boots the 35B on this card with the int8 (K-quant) prompt kernels off, as in the only upstream config that booted. Boot test only, not a sale candidate.",
+   "prereqs": [
+    "strata-replicate",
+    "base-locked"
+   ],
+   "unlocks": [
+    "strata-mtp-prefill"
+   ],
+   "test": "Strata v0.2.8 release package as installed, unchanged (no file moved, no rebuild). Env: STRATA_MMQ_KQ=0, STRATA_Q36_NO_MMQ=1, STRATA_Q36_PLACE_DEBUG=1. Args: --native <UD-Q4_K_XL MTP gguf, same sha256 as strata-fit> --max-context C --prefill 512 --mtp 2 --expert-slots S. Boot search on dev prompts only: C = 16384, then 8192, then stop. At each C, S = 10, 9 ... 1, then 0 (engine auto). Freeze the first config that boots (highest C, then highest S). A boot is valid only if the engine log shows \"prompt GEMM: the native grouped kernels\" (not \"MMQ (int8)\") and no \"K-quant prompt kernels from\" line. Record the hybrid experts line, the context/prompt chunk/free VRAM line and the chunk-rule debug line. Abort on: peak total VRAM over 7726 MiB (nvidia-smi at 1 s), an OOM kill, WSL RAM peak at or over 21.5 GiB, or MemAvailable under 2 GiB. Log peak RAM and swap, and if the expert arena was pinned or pageable. If it boots: dev prompts only, temperature 0, presence_penalty 0, frequency_penalty 0. Measure prefill at about 2K and at about C-1K, and decode, n = 3 medians, plus MTP acceptance. Run a paired llama.cpp arm in the same locked session on the same prompts at the same C (strata-fit config: q8_0 KV, ub 512, n-cpu-moe from the fit ladder). LOCKED, post-swap.",
+   "metric": "Boot yes or no per (C, S). If it boots: prefill and decode tok/s (n = 3 medians), MTP acceptance, peak VRAM MiB, peak RAM GiB, paired llama.cpp prefill and decode.",
+   "target": "Target: a boot at 8K or more with a valid log. A boot makes strata-mtp-prefill and c6s-confirm formable again. No boot at 8K or more stays a measured negative, now with the upstream fix tried.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "No correctness claim and no promotion. Dev prompts only.",
+    "Upstream prefill with these kernels off was 88-109 tok/s (reported upstream, not measured here). Our llama.cpp 35B prefill is about 230-315 tok/s (locked). So this is a boot test, not a sale candidate.",
+    "Free-VRAM room with the kernels off is an estimate from source (about 8 slots at 8K, 2 at 16K), not a result."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes."
+   ],
+   "public_note": "Queued (locked mode, boot test only): the Strata engine with its int8 prompt kernels off, as in the only upstream config that booted. Upstream prefill this way was 88-109 tok/s, so this is not a speed candidate. Credit: see strata-replicate"
   }
  ],
  "next_order": [
@@ -2437,141 +2481,146 @@
   },
   {
    "rank": 3,
+   "id": "strata-nokq-boot",
+   "reason": "Boot test: the Strata engine with its int8 prompt kernels off, as upstream did."
+  },
+  {
+   "rank": 4,
    "id": "c1-anchor",
    "reason": "C1 on the held-out set, paired against c0-rerun. Base for every higher tier."
   },
   {
-   "rank": 4,
+   "rank": 5,
    "id": "c2-confirm",
    "reason": "C2 against C1 on the held-out set."
   },
   {
-   "rank": 5,
+   "rank": 6,
    "id": "thinking-budget",
    "reason": "Bounded thinking for the planner role, per request."
   },
   {
-   "rank": 6,
+   "rank": 7,
    "id": "agent-stack",
    "reason": "C3 against C2 on the held-out set."
   },
   {
-   "rank": 7,
+   "rank": 8,
    "id": "spec-ngram",
    "reason": "Short run with no VRAM cost."
   },
   {
-   "rank": 8,
+   "rank": 9,
    "id": "fit-map",
    "reason": "Before parallel-slots: the largest slot count runs only if the fit map shows the KV fits. Also settles the model file check."
   },
   {
-   "rank": 9,
+   "rank": 10,
    "id": "parallel-slots",
    "reason": "Fixed context per slot; the largest slot count only if it fits."
   },
   {
-   "rank": 10,
+   "rank": 11,
    "id": "c4-confirm",
    "reason": "C4 against C3 on the held-out set."
   },
   {
-   "rank": 11,
+   "rank": 12,
    "id": "quant-choice",
    "reason": "Which quant to pick at full offload. It uses the fit-map limits."
   },
   {
-   "rank": 12,
+   "rank": 13,
    "id": "dense-newer",
    "reason": "Which newer small model to pick at full offload. It uses the fit-map limits."
   },
   {
-   "rank": 13,
+   "rank": 14,
    "id": "c5-confirm",
    "reason": "C5 against C4 on the held-out set."
   },
   {
-   "rank": 14,
+   "rank": 15,
    "id": "offload-curve",
    "reason": "Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30."
   },
   {
-   "rank": 15,
+   "rank": 16,
    "id": "moe-offload",
    "reason": "Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
   },
   {
-   "rank": 16,
+   "rank": 17,
    "id": "c6-confirm",
    "reason": "C6 against C5 on the held-out set."
   },
   {
-   "rank": 17,
+   "rank": 18,
    "id": "pause-handoff",
    "reason": "Pause and start path of the prepared package (manual trigger)."
   },
   {
-   "rank": 18,
+   "rank": 19,
    "id": "uptime-slo",
    "reason": "Background observer: start it, then go on. It blocks nothing."
   },
   {
-   "rank": 19,
+   "rank": 20,
    "id": "auto-pause-trigger",
    "reason": "The watcher only logs games today. This makes it pause and start the server."
   },
   {
-   "rank": 20,
+   "rank": 21,
    "id": "thermal-soak",
    "reason": "C1, no request proxy, 4 h. Full offload runs at 203.1 W mean of a 220 W limit. Logging only."
   },
   {
-   "rank": 21,
+   "rank": 22,
    "id": "watchdog-restart",
    "reason": "Crash recovery with state restored. Back-off is expected to miss 30 s from kill 3 on."
   },
   {
-   "rank": 22,
+   "rank": 23,
    "id": "driver-inventory",
    "reason": "Read-only version inventory. Upgrade candidates are research entries only."
   },
   {
-   "rank": 23,
+   "rank": 24,
    "id": "wh-per-pass",
    "reason": "Free with each bench once power logging starts before task 1."
   },
   {
-   "rank": 24,
+   "rank": 25,
    "id": "spec-draft",
    "reason": "Bigger speed-up, but it costs VRAM."
   },
   {
-   "rank": 25,
+   "rank": 26,
    "id": "best-of-n",
    "reason": "Uses spare slots to lift the 0-pass roles."
   },
   {
-   "rank": 26,
+   "rank": 27,
    "id": "agent-workers",
    "reason": "More jobs per hour if the CPU keeps up."
   },
   {
-   "rank": 27,
+   "rank": 28,
    "id": "fp16-workloads",
    "reason": "The only place the unlock pays. Unlocked-only numbers until locked-ab runs."
   },
   {
-   "rank": 28,
+   "rank": 29,
    "id": "bigger-class",
    "reason": "Capstone and C7 confirm against C6 (C6S is not formed)."
   },
   {
-   "rank": 29,
+   "rank": 30,
    "id": "useful-work-per-wh",
    "reason": "Capstone. Runs when its prereqs are measured."
   },
   {
-   "rank": 30,
+   "rank": 31,
    "id": "long-soak",
    "reason": "Last. 24 h on C1, no request proxy."
   }
