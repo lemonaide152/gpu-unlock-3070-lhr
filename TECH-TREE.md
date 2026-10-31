@@ -10,10 +10,10 @@ All numbers in this file come from one test machine. All runs are warm, not cold
 
 | status | nodes |
 |---|---:|
-| measured | 24 |
+| measured | 25 |
 | in progress | 1 |
 | paused | 0 |
-| queued | 30 |
+| queued | 29 |
 | needs owner | 3 |
 | blocked | 1 |
 | total | 59 |
@@ -30,7 +30,7 @@ Each tier stacks on the tier below. A tier counts only after it meets the pass c
 
 | tier | name | what it adds | confirm node | config file | status | held-out result |
 |---|---|---|---|---|---|---|
-| C0 | Baseline, partial offload | Starting point: the 8B model with part of its layers in system RAM. | `c0-rerun` | `configs/C0.json` | measured on dev set; held-out anchor queued | — |
+| C0 | Baseline, partial offload | Starting point: the 8B model with part of its layers in system RAM. | `c0-rerun` | `configs/C0.json` | held-out anchor measured | 10 of 72 passes (Wilson 95% CI 0.08 to 0.24), 4.51 passes per hour, 16.0 tok/s decode |
 | C1 | Full offload | All layers on the card, flash attention, 8-bit KV cache, context sized to the jobs. | `c1-anchor` | `configs/C1.json` | measured on dev set; held-out anchor queued | — |
 | C2 | Agent loop and sampling fixes | C1 plus the loop-guard result and the winning sampler arm. | `c2-confirm` | not published | TBD | — |
 | C3 | Planner thinking | C2 plus bounded thinking for the planner role, if it wins. | `agent-stack` | not published | TBD | — |
@@ -67,7 +67,7 @@ flowchart LR
   end
   subgraph configs["Config tiers"]
     c0_anchor["C0 held-out anchor<br/>measured"]
-    c0_rerun["C0 held-out anchor (rerun, post-swap)<br/>in progress"]
+    c0_rerun["C0 held-out anchor (rerun, post-swap)<br/>measured"]
     c1_anchor["C1 held-out anchor<br/>queued"]
     c2_confirm["C2 confirm<br/>queued"]
     c4_confirm["C4 confirm<br/>queued"]
@@ -106,7 +106,7 @@ flowchart LR
     loop_guard["Loop guard<br/>measured"]
     agent_stack["Agent stack (C3 confirm)<br/>queued"]
     unlocked_reconfirm["Unlocked re-confirm of locked agent results<br/>needs owner"]
-    base_locked["Locked dev-set base (C1 full offload)<br/>queued"]
+    base_locked["Locked dev-set base (C1 full offload)<br/>in progress"]
   end
   subgraph throughput["Throughput"]
     parallel_slots["Parallel slots<br/>queued"]
@@ -249,48 +249,47 @@ flowchart LR
   classDef measured fill:#0a0a0a,color:#f2f2f2,stroke:#0a0a0a
   classDef live fill:#f6e9dc,color:#9a4a06,stroke:#9a4a06
   classDef queued fill:#f2f2f2,color:#0a0a0a,stroke:#6b6b6b,stroke-dasharray:3 3
-  class stack_baseline,harness,unlock_fp32acc,ram_wsl_check,kv_cache_types,flash_attention,full_offload,failure_sort,test_gate,tool_call_format,sampler,loop_guard,power_log,heldout_set,c0_anchor,strata_fit,strata_replicate,strata_mtp_prefill,strata_kv_split_loan,strata_attn_tile,strata_resident_routing,c6s_confirm,llama_native_sm86,moe35_longctx measured
-  class cold_boot,locked_ab,c0_rerun,strata_125b_probe,unlocked_reconfirm live
-  class fit_map,offload_curve,quant_choice,spec_ngram,spec_draft,dense_newer,moe_offload,fp16_workloads,thinking_budget,agent_stack,parallel_slots,agent_workers,best_of_n,wh_per_pass,bigger_class,useful_work_per_wh,pause_handoff,watchdog_restart,thermal_soak,long_soak,uptime_slo,driver_inventory,c1_anchor,c2_confirm,c4_confirm,c5_confirm,c6_confirm,auto_pause_trigger,base_locked,strata_nokq_boot queued
+  class stack_baseline,harness,unlock_fp32acc,ram_wsl_check,kv_cache_types,flash_attention,full_offload,failure_sort,test_gate,tool_call_format,sampler,loop_guard,power_log,heldout_set,c0_anchor,c0_rerun,strata_fit,strata_replicate,strata_mtp_prefill,strata_kv_split_loan,strata_attn_tile,strata_resident_routing,c6s_confirm,llama_native_sm86,moe35_longctx measured
+  class cold_boot,locked_ab,base_locked,strata_125b_probe,unlocked_reconfirm live
+  class fit_map,offload_curve,quant_choice,spec_ngram,spec_draft,dense_newer,moe_offload,fp16_workloads,thinking_budget,agent_stack,parallel_slots,agent_workers,best_of_n,wh_per_pass,bigger_class,useful_work_per_wh,pause_handoff,watchdog_restart,thermal_soak,long_soak,uptime_slo,driver_inventory,c1_anchor,c2_confirm,c4_confirm,c5_confirm,c6_confirm,auto_pause_trigger,strata_nokq_boot queued
 ```
 
 ## Next order
 
-The lab runs these nodes in this order. The held-out set is frozen and validated. The C0 rerun runs now. Then the C1 anchor, then each tier's nodes and its confirm run, then reliability, firmware and capstone nodes. The loop guard, the sampler arms and the 35B long-context speed run are measured in locked mode. The unlocked re-confirm of the loop guard and sampler-b needs the owner, so it is not in the order. The Strata engine does not boot the 35B on this card with its default settings. A boot test with its int8 prompt kernels off runs after the locked base. The other Strata nodes and tier C6S stay out of the order until that test boots.
+The lab runs these nodes in this order. The held-out set is frozen and validated. The C0 rerun is measured. The locked base runs now. Then the C1 anchor, then each tier's nodes and its confirm run, then reliability, firmware and capstone nodes. The loop guard, the sampler arms and the 35B long-context speed run are measured in locked mode. The unlocked re-confirm of the loop guard and sampler-b needs the owner, so it is not in the order. The Strata engine does not boot the 35B on this card with its default settings. A boot test with its int8 prompt kernels off runs after the locked base. The other Strata nodes and tier C6S stay out of the order until that test boots.
 
 | rank | node | reason |
 |---:|---|---|
-| 1 | `c0-rerun` | Running. C0 anchor with the display off the card for the whole run. |
-| 2 | `base-locked` | Same-lock-state dev-bench base for later dev-bench results. |
-| 3 | `strata-nokq-boot` | Boot test: the Strata engine with its int8 prompt kernels off, as upstream did. |
-| 4 | `c1-anchor` | C1 on the held-out set, paired against c0-rerun. Base for every higher tier. |
-| 5 | `c2-confirm` | C2 against C1 on the held-out set. |
-| 6 | `thinking-budget` | Bounded thinking for the planner role, per request. |
-| 7 | `agent-stack` | C3 against C2 on the held-out set. |
-| 8 | `spec-ngram` | Short run with no VRAM cost. |
-| 9 | `fit-map` | Before parallel-slots: the largest slot count runs only if the fit map shows the KV fits. Also settles the model file check. |
-| 10 | `parallel-slots` | Fixed context per slot; the largest slot count only if it fits. |
-| 11 | `c4-confirm` | C4 against C3 on the held-out set. |
-| 12 | `quant-choice` | Which quant to pick at full offload. It uses the fit-map limits. |
-| 13 | `dense-newer` | Which newer small model to pick at full offload. It uses the fit-map limits. |
-| 14 | `c5-confirm` | C5 against C4 on the held-out set. |
-| 15 | `offload-curve` | Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30. |
-| 16 | `moe-offload` | Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB). |
-| 17 | `c6-confirm` | C6 against C5 on the held-out set. |
-| 18 | `pause-handoff` | Pause and start path of the prepared package (manual trigger). |
-| 19 | `uptime-slo` | Background observer: start it, then go on. It blocks nothing. |
-| 20 | `auto-pause-trigger` | The watcher only logs games today. This makes it pause and start the server. |
-| 21 | `thermal-soak` | C1, no request proxy, 4 h. Full offload runs at 203.1 W mean of a 220 W limit. Logging only. |
-| 22 | `watchdog-restart` | Crash recovery with state restored. Back-off is expected to miss 30 s from kill 3 on. |
-| 23 | `driver-inventory` | Read-only version inventory. Upgrade candidates are research entries only. |
-| 24 | `wh-per-pass` | Free with each bench once power logging starts before task 1. |
-| 25 | `spec-draft` | Bigger speed-up, but it costs VRAM. |
-| 26 | `best-of-n` | Uses spare slots to lift the 0-pass roles. |
-| 27 | `agent-workers` | More jobs per hour if the CPU keeps up. |
-| 28 | `fp16-workloads` | The only place the unlock pays. Unlocked-only numbers until locked-ab runs. |
-| 29 | `bigger-class` | Capstone and C7 confirm against C6 (C6S is not formed). |
-| 30 | `useful-work-per-wh` | Capstone. Runs when its prereqs are measured. |
-| 31 | `long-soak` | Last. 24 h on C1, no request proxy. |
+| 1 | `base-locked` | Running. Same-lock-state dev-bench base for later dev-bench results. |
+| 2 | `strata-nokq-boot` | Boot test: the Strata engine with its int8 prompt kernels off, as upstream did. |
+| 3 | `c1-anchor` | C1 on the held-out set, paired against c0-rerun. Base for every higher tier. |
+| 4 | `c2-confirm` | C2 against C1 on the held-out set. |
+| 5 | `thinking-budget` | Bounded thinking for the planner role, per request. |
+| 6 | `agent-stack` | C3 against C2 on the held-out set. |
+| 7 | `spec-ngram` | Short run with no VRAM cost. |
+| 8 | `fit-map` | Before parallel-slots: the largest slot count runs only if the fit map shows the KV fits. Also settles the model file check. |
+| 9 | `parallel-slots` | Fixed context per slot; the largest slot count only if it fits. |
+| 10 | `c4-confirm` | C4 against C3 on the held-out set. |
+| 11 | `quant-choice` | Which quant to pick at full offload. It uses the fit-map limits. |
+| 12 | `dense-newer` | Which newer small model to pick at full offload. It uses the fit-map limits. |
+| 13 | `c5-confirm` | C5 against C4 on the held-out set. |
+| 14 | `offload-curve` | Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30. |
+| 15 | `moe-offload` | Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB). |
+| 16 | `c6-confirm` | C6 against C5 on the held-out set. |
+| 17 | `pause-handoff` | Pause and start path of the prepared package (manual trigger). |
+| 18 | `uptime-slo` | Background observer: start it, then go on. It blocks nothing. |
+| 19 | `auto-pause-trigger` | The watcher only logs games today. This makes it pause and start the server. |
+| 20 | `thermal-soak` | C1, no request proxy, 4 h. Full offload runs at 203.1 W mean of a 220 W limit. Logging only. |
+| 21 | `watchdog-restart` | Crash recovery with state restored. Back-off is expected to miss 30 s from kill 3 on. |
+| 22 | `driver-inventory` | Read-only version inventory. Upgrade candidates are research entries only. |
+| 23 | `wh-per-pass` | Free with each bench once power logging starts before task 1. |
+| 24 | `spec-draft` | Bigger speed-up, but it costs VRAM. |
+| 25 | `best-of-n` | Uses spare slots to lift the 0-pass roles. |
+| 26 | `agent-workers` | More jobs per hour if the CPU keeps up. |
+| 27 | `fp16-workloads` | The only place the unlock pays. Unlocked-only numbers until locked-ab runs. |
+| 28 | `bigger-class` | Capstone and C7 confirm against C6 (C6S is not formed). |
+| 29 | `useful-work-per-wh` | Capstone. Runs when its prereqs are measured. |
+| 30 | `long-soak` | Last. 24 h on C1, no request proxy. |
 
 ## Node notes
 
@@ -298,7 +297,7 @@ The lab runs these nodes in this order. The held-out set is frozen and validated
 - `sampler` (measured): Measured (locked mode): presence 1.5 (sampler-b) gave 8 of 36 passes and 14.77 passes per hour, against 14.54 on the unlocked base. Kept for locked runs only; needs an unlocked re-confirm. 8 against 6 passes is within noise.
 - `loop-guard` (measured): Measured (locked mode), negative and indicative only: 5 of 36 passes, 2.14 passes per hour against 14.54 on the unlocked base. Needs an unlocked rerun before it counts.
 - `c0-anchor` (measured): Measured (locked mode), confounded: the display moved off the card mid-run. Not used for pairing; c0-rerun is the C0 anchor.
-- `c0-rerun` (in progress): In progress: 33 of 72 runs done, 6 passes so far (partial, not a result). The C0 anchor for pairing. A per-test memory cap is staged and turns on only after a second out-of-memory kill.
+- `c0-rerun` (measured): Measured (locked mode, post-swap): 10 of 72 held-out passes (Wilson 95% CI 0.08 to 0.24), 4.51 passes per hour, 16.0 tok/s median decode, 1.38 Wh per task, peak VRAM 5749 MiB. This is the C0 anchor for pairing.
 - `strata-fit` (measured): Measured (locked mode). Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source.
 - `strata-replicate` (measured): Measured negative (locked mode) for the default engine settings (int8 prompt kernels on): the Strata engine does not boot the 35B on this card at 16K or 8K, with any expert slot count. All 22 attempts stopped at the engine's own VRAM check (1159 MiB needed, 655 MiB free). Upstream got the same error on the same file and booted only with these kernels off. Their staging buffers are about 1127 of the 1159 MiB (estimate from source). A boot test with these kernels off is queued. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source.
 - `strata-mtp-prefill` (measured): Not formed: the Strata engine does not boot the 35B on this card (strata-replicate). Not run.
@@ -310,7 +309,7 @@ The lab runs these nodes in this order. The held-out set is frozen and validated
 - `llama-native-sm86` (measured): Resolved, no-op: the current CUDA build already has native sm_86 code.
 - `moe35-longctx` (measured): Measured (locked mode): the 35B MoE on llama.cpp fits at 128K with 7670 MiB peak VRAM. Median prefill 241, 246 and 232 tok/s and decode 26.5, 22.7 and 16.1 tok/s at 2K, 32K and 120K (n = 3). 120K decode is below 18 tok/s, so the long-context claim stops at 32K for now.
 - `unlocked-reconfirm` (needs owner): Pending (needs the owner): reruns loop-guard and sampler-b unlocked so that their verdicts count.
-- `base-locked` (queued): Queued. The C1 full-offload config on the dev bench in locked mode, as the same-lock-state base for later dev-bench results.
+- `base-locked` (in progress): Running. The C1 full-offload config on the dev bench in locked mode, as the same-lock-state base for later dev-bench results.
 - `strata-nokq-boot` (queued): Queued (locked mode, boot test only): the Strata engine with its int8 prompt kernels off, as in the only upstream config that booted. Upstream prefill this way was 88-109 tok/s, so this is not a speed candidate. Credit: see strata-replicate.
 
 ## Nodes
@@ -337,7 +336,7 @@ Stack the wins into numbered configs C0 to C7. Each tier must beat the tier belo
 | id | goal | test | metric | target | status | result |
 |---|---|---|---|---|---|---|
 | `c0-anchor` | Measure tier C0 (partial offload baseline) on the held-out set. | Run C0 on the full held-out set, every task, with power logged from before the first task. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json. | Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed. | Target: all held-out runs completed (anchor). No pass criteria; this is the floor. | measured | mode: locked mode, pre-swap; held-out passes: 15 of 72 (Wilson 95% CI 0.13 to 0.32); passes per hour: 6.17; decode: 19.7 tok/s; peak VRAM: 5764 MiB; use: Recorded, not for pairing: the display moved off the 3070 mid-run. c0-rerun is the C0 anchor |
-| `c0-rerun` | Measure tier C0 (partial offload baseline) on the held-out set post-swap, with the display off the 3070 for the whole run. This is the C0 anchor for pairing. | Run C0 on the full held-out set, every task, with power logged from before the first task. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json. Post-swap: the display stays off the 3070 for the whole run (locked fit budget 7726 MiB). c1-anchor uses the same harness, task order and state. | Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed. | Target: all held-out runs completed (anchor). No pass criteria; this is the floor. | in progress | — |
+| `c0-rerun` | Measure tier C0 (partial offload baseline) on the held-out set post-swap, with the display off the 3070 for the whole run. This is the C0 anchor for pairing. | Run C0 on the full held-out set, every task, with power logged from before the first task. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json. Post-swap: the display stays off the 3070 for the whole run (locked fit budget 7726 MiB). c1-anchor uses the same harness, task order and state. | Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed. | Target: all held-out runs completed (anchor). No pass criteria; this is the floor. | measured | mode: locked mode, post-swap, display off the card for the whole run; held-out passes: 10 of 72 (Wilson 95% CI 0.08 to 0.24); passes per hour: 4.51; decode: 16.0 tok/s (median); board energy: 1.38 Wh per task, 9.95 Wh per pass; peak VRAM: 5749 MiB, 0 out-of-memory lines; use: The C0 anchor for pairing. c1-anchor is compared against it. |
 | `c1-anchor` | Measure tier C1 (full offload) on the held-out set. | Run C1 on the full held-out set with the same harness, task order and power logging as c0-rerun. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json. Post-swap: the display stays off the 3070 for the whole run. | Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed. | Target: all held-out runs completed (anchor), and meets the tier pass criteria against C0. | queued | — |
 | `c2-confirm` | Confirm tier C2 (agent loop and sampling fixes) against the tier below on the held-out set. | Run tier C2 on the frozen held-out set with the same harness, task order and power logging as the tier below. Apply the tier pass criteria. | Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per pass, peak VRAM MiB. | Target: meets the tier pass criteria against the tier below. | queued | — |
 | `c4-confirm` | Confirm tier C4 (decode speed-up and concurrency) against the tier below on the held-out set. | Run tier C4 on the frozen held-out set with the same harness, task order and power logging as the tier below. Apply the tier pass criteria. | Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per pass, peak VRAM MiB. | Target: meets the tier pass criteria against the tier below. | queued | — |
@@ -386,7 +385,7 @@ Make more agent tasks pass on the same model and card.
 | `loop-guard` | Stop the agent from repeating the same tool call. | A harness change that stops repeated identical tool calls. 36-run agent bench. | Loop events per run, pass rate, wall time. | Target: loop events cut by half. | measured | mode: locked mode, post-swap; baseline is the unlocked full-offload run; passes: 5 of 36 (baseline 6 of 36); passes per hour: 2.14 (baseline 14.54); not kept; loop events per run: 3.17 (baseline 1.31); target of half not met; median wall s: 80.44 (baseline 18.39); output-limit truncation: testwriter hit the length stop on 33 of 250 tool calls; verdict: Negative, indicative only: 5 of 36 and 2.14 passes per hour (locked) against 6 of 36 and 14.54 (full-offload, unlocked). Lock states differ; unlocked-reconfirm reruns it before it counts |
 | `agent-stack` | Combine the fixes that helped and check them on tasks that were not used to tune them. | Tier C3 on the 36-run bench and the held-out set against C2. Apply the tier pass criteria. | Pass rate on the tuned set and on the held-out set, reported apart. Passes per hour, Wh per pass, peak VRAM MiB. | Target: meets the tier pass criteria against C2 on the held-out set. | queued | — |
 | `unlocked-reconfirm` | Rerun loop-guard and sampler-b in unlocked mode against the unlocked full-offload base, so their verdicts count. | Unlocked mode (mma ratio near 1.0 at session start), post-swap, display off the 3070. 36-run core agent bench, n = 3, warm, power logged from before task 1. Arm 1: loop-guard (loopguard-on-base). Arm 2: sampler-b (presence 1.5, Qwen3 set except min-p, per request). Same base run: full-offload, unlocked. | Passes per hour (decision), pass rate with 95% CI, loop events per run, truncated calls per role, Wh per pass. | Target: a same-lock-state verdict for each arm. loop-guard counts as negative only if it also loses unlocked. sampler-b moves into the unlocked best config only if its passes per hour beat 14.54 unlocked. | needs owner | — |
-| `base-locked` | Measure the C1 full-offload config on the 36-run dev bench in locked mode, post-swap. This is the in-lock base for moe-offload, loop-guard and sampler (rule 2: do not compare across lock states). | C1 full-offload config (llama-server -ngl 99 -fa on, the full-offload ctx and KV). Settled sampler: temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. sampler-b is off. Log the full launch line. 36-run core agent bench, power logged from before task 1. LOCKED, post-swap (display off the 3070), tagged with the in-session mma reading. | Passes per hour, pass rate with 95% CI, median agent decode tok/s, loop events per run, truncated calls per role, board Wh per pass, peak VRAM MiB. | Target: a complete 36-run locked base. No pass criteria; this is the in-lock reference. | queued | — |
+| `base-locked` | Measure the C1 full-offload config on the 36-run dev bench in locked mode, post-swap. This is the in-lock base for moe-offload, loop-guard and sampler (rule 2: do not compare across lock states). | C1 full-offload config (llama-server -ngl 99 -fa on, the full-offload ctx and KV). Settled sampler: temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. sampler-b is off. Log the full launch line. 36-run core agent bench, power logged from before task 1. LOCKED, post-swap (display off the 3070), tagged with the in-session mma reading. | Passes per hour, pass rate with 95% CI, median agent decode tok/s, loop events per run, truncated calls per role, board Wh per pass, peak VRAM MiB. | Target: a complete 36-run locked base. No pass criteria; this is the in-lock reference. | in progress | — |
 
 ### Throughput
 
@@ -592,6 +591,17 @@ Every measured value names its source file. Paths are relative to the repo root.
 - peak VRAM: **5764 MiB**. Source: `results/c0-anchor.md`
 - use: **Recorded, not for pairing: the display moved off the 3070 mid-run. c0-rerun is the C0 anchor**. Source: `results/c0-anchor.md`
 - Confounds: C0 server args are inferred from the lab defaults at that time. Record the exact launch line this time. The display moved off the 3070 mid-run, so the run spans two VRAM states. Not used for pairing.
+
+### `c0-rerun`
+
+- mode: **locked mode, post-swap, display off the card for the whole run**. Source: `results/c0-rerun.md`
+- held-out passes: **10 of 72 (Wilson 95% CI 0.08 to 0.24)**. Source: `results/c0-rerun.md`
+- passes per hour: **4.51**. Source: `results/c0-rerun.md`
+- decode: **16.0 tok/s (median)**. Source: `results/c0-rerun.md`
+- board energy: **1.38 Wh per task, 9.95 Wh per pass**. Source: `results/c0-rerun.md`
+- peak VRAM: **5749 MiB, 0 out-of-memory lines**. Source: `results/c0-rerun.md`
+- use: **The C0 anchor for pairing. c1-anchor is compared against it**. Source: `results/c0-rerun.md`
+- Confounds: Try 1 was OOM-killed by a held-out task's test binary (not the server); it was discarded and the run relaunched. Replaces c0-anchor (pre-swap, confounded) as the C0 anchor.
 
 ### `strata-fit`
 

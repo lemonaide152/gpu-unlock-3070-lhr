@@ -1712,8 +1712,44 @@
    "test": "Run C0 on the full held-out set, every task, with power logged from before the first task. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json. Post-swap: the display stays off the 3070 for the whole run (locked fit budget 7726 MiB). c1-anchor uses the same harness, task order and state.",
    "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed.",
    "target": "Target: all held-out runs completed (anchor). No pass criteria; this is the floor.",
-   "status": "in_progress",
-   "result": null,
+   "status": "measured",
+   "result": [
+    {
+     "metric": "mode",
+     "value": "locked mode, post-swap, display off the card for the whole run",
+     "source": "results/c0-rerun.md"
+    },
+    {
+     "metric": "held-out passes",
+     "value": "10 of 72 (Wilson 95% CI 0.08 to 0.24)",
+     "source": "results/c0-rerun.md"
+    },
+    {
+     "metric": "passes per hour",
+     "value": "4.51",
+     "source": "results/c0-rerun.md"
+    },
+    {
+     "metric": "decode",
+     "value": "16.0 tok/s (median)",
+     "source": "results/c0-rerun.md"
+    },
+    {
+     "metric": "board energy",
+     "value": "1.38 Wh per task, 9.95 Wh per pass",
+     "source": "results/c0-rerun.md"
+    },
+    {
+     "metric": "peak VRAM",
+     "value": "5749 MiB, 0 out-of-memory lines",
+     "source": "results/c0-rerun.md"
+    },
+    {
+     "metric": "use",
+     "value": "The C0 anchor for pairing. c1-anchor is compared against it.",
+     "source": "results/c0-rerun.md"
+    }
+   ],
    "confounds": [
     "C0 server args are inferred from the lab defaults at that time. Record the exact launch line this time.",
     "Replaces c0-anchor (pre-swap, confounded) as the C0 anchor. Anchors do not span the swap.",
@@ -2428,7 +2464,7 @@
    "test": "C1 full-offload config (llama-server -ngl 99 -fa on, the full-offload ctx and KV). Settled sampler: temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. sampler-b is off. Log the full launch line. 36-run core agent bench, power logged from before task 1. LOCKED, post-swap (display off the 3070), tagged with the in-session mma reading.",
    "metric": "Passes per hour, pass rate with 95% CI, median agent decode tok/s, loop events per run, truncated calls per role, board Wh per pass, peak VRAM MiB.",
    "target": "Target: a complete 36-run locked base. No pass criteria; this is the in-lock reference.",
-   "status": "queued",
+   "status": "in_progress",
    "result": null,
    "confounds": [
     "Dev set only. Not a held-out result and not a tier anchor.",
@@ -2471,156 +2507,151 @@
  "next_order": [
   {
    "rank": 1,
-   "id": "c0-rerun",
-   "reason": "Running. C0 anchor with the display off the card for the whole run."
+   "id": "base-locked",
+   "reason": "Running. Same-lock-state dev-bench base for later dev-bench results."
   },
   {
    "rank": 2,
-   "id": "base-locked",
-   "reason": "Same-lock-state dev-bench base for later dev-bench results."
-  },
-  {
-   "rank": 3,
    "id": "strata-nokq-boot",
    "reason": "Boot test: the Strata engine with its int8 prompt kernels off, as upstream did."
   },
   {
-   "rank": 4,
+   "rank": 3,
    "id": "c1-anchor",
    "reason": "C1 on the held-out set, paired against c0-rerun. Base for every higher tier."
   },
   {
-   "rank": 5,
+   "rank": 4,
    "id": "c2-confirm",
    "reason": "C2 against C1 on the held-out set."
   },
   {
-   "rank": 6,
+   "rank": 5,
    "id": "thinking-budget",
    "reason": "Bounded thinking for the planner role, per request."
   },
   {
-   "rank": 7,
+   "rank": 6,
    "id": "agent-stack",
    "reason": "C3 against C2 on the held-out set."
   },
   {
-   "rank": 8,
+   "rank": 7,
    "id": "spec-ngram",
    "reason": "Short run with no VRAM cost."
   },
   {
-   "rank": 9,
+   "rank": 8,
    "id": "fit-map",
    "reason": "Before parallel-slots: the largest slot count runs only if the fit map shows the KV fits. Also settles the model file check."
   },
   {
-   "rank": 10,
+   "rank": 9,
    "id": "parallel-slots",
    "reason": "Fixed context per slot; the largest slot count only if it fits."
   },
   {
-   "rank": 11,
+   "rank": 10,
    "id": "c4-confirm",
    "reason": "C4 against C3 on the held-out set."
   },
   {
-   "rank": 12,
+   "rank": 11,
    "id": "quant-choice",
    "reason": "Which quant to pick at full offload. It uses the fit-map limits."
   },
   {
-   "rank": 13,
+   "rank": 12,
    "id": "dense-newer",
    "reason": "Which newer small model to pick at full offload. It uses the fit-map limits."
   },
   {
-   "rank": 14,
+   "rank": 13,
    "id": "c5-confirm",
    "reason": "C5 against C4 on the held-out set."
   },
   {
-   "rank": 15,
+   "rank": 14,
    "id": "offload-curve",
    "reason": "Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30."
   },
   {
-   "rank": 16,
+   "rank": 15,
    "id": "moe-offload",
    "reason": "Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
   },
   {
-   "rank": 17,
+   "rank": 16,
    "id": "c6-confirm",
    "reason": "C6 against C5 on the held-out set."
   },
   {
-   "rank": 18,
+   "rank": 17,
    "id": "pause-handoff",
    "reason": "Pause and start path of the prepared package (manual trigger)."
   },
   {
-   "rank": 19,
+   "rank": 18,
    "id": "uptime-slo",
    "reason": "Background observer: start it, then go on. It blocks nothing."
   },
   {
-   "rank": 20,
+   "rank": 19,
    "id": "auto-pause-trigger",
    "reason": "The watcher only logs games today. This makes it pause and start the server."
   },
   {
-   "rank": 21,
+   "rank": 20,
    "id": "thermal-soak",
    "reason": "C1, no request proxy, 4 h. Full offload runs at 203.1 W mean of a 220 W limit. Logging only."
   },
   {
-   "rank": 22,
+   "rank": 21,
    "id": "watchdog-restart",
    "reason": "Crash recovery with state restored. Back-off is expected to miss 30 s from kill 3 on."
   },
   {
-   "rank": 23,
+   "rank": 22,
    "id": "driver-inventory",
    "reason": "Read-only version inventory. Upgrade candidates are research entries only."
   },
   {
-   "rank": 24,
+   "rank": 23,
    "id": "wh-per-pass",
    "reason": "Free with each bench once power logging starts before task 1."
   },
   {
-   "rank": 25,
+   "rank": 24,
    "id": "spec-draft",
    "reason": "Bigger speed-up, but it costs VRAM."
   },
   {
-   "rank": 26,
+   "rank": 25,
    "id": "best-of-n",
    "reason": "Uses spare slots to lift the 0-pass roles."
   },
   {
-   "rank": 27,
+   "rank": 26,
    "id": "agent-workers",
    "reason": "More jobs per hour if the CPU keeps up."
   },
   {
-   "rank": 28,
+   "rank": 27,
    "id": "fp16-workloads",
    "reason": "The only place the unlock pays. Unlocked-only numbers until locked-ab runs."
   },
   {
-   "rank": 29,
+   "rank": 28,
    "id": "bigger-class",
    "reason": "Capstone and C7 confirm against C6 (C6S is not formed)."
   },
   {
-   "rank": 30,
+   "rank": 29,
    "id": "useful-work-per-wh",
    "reason": "Capstone. Runs when its prereqs are measured."
   },
   {
-   "rank": 31,
+   "rank": 30,
    "id": "long-soak",
    "reason": "Last. 24 h on C1, no request proxy."
   }
