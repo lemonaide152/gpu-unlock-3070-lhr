@@ -1,6 +1,6 @@
 {
  "name": "RTX 3070 tech tree",
- "version": "1.5.3",
+ "version": "1.5.4",
  "updated": "2026-10-30",
  "scope": "Get the most real work from one RTX 3070 8 GB (LHR included) for local LLMs and agent work.",
  "results_dir": "results/",
@@ -155,6 +155,15 @@
     "name": "Bigger class capstone",
     "adds": "The best large-model settings plus the agent fixes.",
     "confirm_node": "bigger-class",
+    "config_file": null,
+    "status": "TBD",
+    "heldout_result": null
+   },
+   {
+    "tier": "C6S",
+    "name": "Large MoE on the Strata engine",
+    "adds": "The 35B MoE on the Strata engine, with the upstream 8 GB recipe and the winning MTP and prompt-chunk settings.",
+    "confirm_node": "c6s-confirm",
     "config_file": null,
     "status": "TBD",
     "heldout_result": null
@@ -372,7 +381,9 @@
     "stack-baseline"
    ],
    "unlocks": [
-    "moe-offload"
+    "moe-offload",
+    "strata-fit",
+    "strata-replicate"
    ],
    "test": "Read-only: free -g and nproc inside WSL2. Read the context percentiles from existing agent runs.",
    "metric": "Total RAM, WSL2 memory limit, free RAM with the lab server loaded, p95 of per-run max context.",
@@ -475,7 +486,8 @@
    "unlocks": [
     "full-offload",
     "fit-map",
-    "moe-offload"
+    "moe-offload",
+    "strata-kv-split-loan"
    ],
    "test": "Same 15,414-token prompt at 64K context, -ngl 30, 3 reps per K/V pair. Log the flash-attention fallback flag and peak VRAM.",
    "metric": "Prefill tok/s, decode tok/s, peak VRAM MiB, fallback flag.",
@@ -810,7 +822,8 @@
    "status": "queued",
    "result": null,
    "confounds": [
-    "The draft model takes VRAM from the KV cache."
+    "The draft model takes VRAM from the KV cache.",
+    "Draft model: Qwen/Qwen3-0.6B-GGUF Q8_0, revision 23749fef, sha256 9465e63a22add5354d9bb4b99e90117043c7124007664907259bd16d043bb031."
    ],
    "safety_notes": []
   },
@@ -876,7 +889,7 @@
     "unlock-fp32acc"
    ],
    "unlocks": [],
-   "test": "Unlocked arm: PyTorch fp16/bf16 matmul TFLOPS, an image-generation it/s run, and a BF16 vs F16 small-model llama-bench pp512/pp2048.",
+   "test": "Unlocked arm, after the hold lifts: a PyTorch f16 and bf16 matmul sweep (TFLOPS per size), an image-generation it/s run with stabilityai/sd-turbo, and a BF16 vs F16 small-model llama-bench pp512/pp2048.",
    "metric": "End-to-end speed per workload. Later: ratio vs the clean locked arm.",
    "target": "Target: at least 1.4x on one end-to-end FP16/BF16 workload vs the locked arm.",
    "status": "queued",
@@ -1130,7 +1143,8 @@
    ],
    "unlocks": [
     "agent-stack",
-    "c2-confirm"
+    "c2-confirm",
+    "strata-resident-routing"
    ],
    "test": "A harness change that stops repeated identical tool calls. 36-run agent bench.",
    "metric": "Loop events per run, pass rate, wall time.",
@@ -1205,7 +1219,7 @@
    ],
    "unlocks": [],
    "test": "Agent bench with 2 workers against a 2-slot server.",
-   "metric": "Passes per hour, pass rate, CPU load.",
+   "metric": "Passes per hour, pass rate, CPU load. Pass/fail uses the compare_tiers rule, which is canonical; the plan text must match it. passes/h in wall mode (compare_wall.py).",
    "target": "Target: passes per hour at least 1.5x vs 1 worker.",
    "status": "queued",
    "result": null,
@@ -1229,7 +1243,7 @@
     "useful-work-per-wh"
    ],
    "test": "Several attempts per task on the weak roles. Pick one using only visible checks. Never use the hidden check.",
-   "metric": "Role pass rate, passes per hour, Wh per pass.",
+   "metric": "Role pass rate, passes per hour, Wh per pass. Headline: the selector-based figure (the attempt picked by visible checks). The 'any of n passes' oracle figure is reported only as an upper bound, labeled as such.",
    "target": "Target: implementer + debugger from 0 of 12 to at least 3 of 12.",
    "status": "queued",
    "result": null,
@@ -1313,10 +1327,11 @@
    "prereqs": [
     "moe-offload",
     "agent-stack",
-    "c6-confirm"
+    "c6-confirm",
+    "c6s-confirm"
    ],
    "unlocks": [],
-   "test": "Tier C7 on the held-out set against C6. Apply the tier pass criteria.",
+   "test": "Tier C7 on the held-out set against the better of C6 and C6S. Apply the tier pass criteria.",
    "metric": "Pass rate, passes per hour, Wh per pass vs the 8B stack.",
    "target": "Target: meets the tier pass criteria against C6, and more passes per hour than the best 8B tier.",
    "status": "queued",
@@ -1500,13 +1515,36 @@
    ],
    "unlocks": [
     "c0-anchor",
-    "c1-anchor"
+    "c1-anchor",
+    "strata-replicate"
    ],
    "test": "Write at least 72 new tasks in the bench format (6 roles x 12), each with a hidden check and a reference solution that passes it. Freeze them with a sha256 manifest. Validate every check against its reference solution and against an empty change. No tuning run may use these tasks.",
    "metric": "Task count per role, checks that pass the reference and fail the empty change, manifest sha256.",
    "target": "Target: at least 72 frozen tasks, 12 per role, 100% of checks valid.",
-   "status": "built, frozen, awaiting validation run on the test machine",
-   "result": "heldout-v1 frozen 2026-10-27: 72 tasks, 12 per role, 4 easy/4 medium/4 hard each. On the box: 72/72 references pass, 72/72 start states fail. Manifest sha256 dc99f4f60aa10a1f70457998dc40cfbf5774c0af962eedff080a0df462da3514 (505 files). Not yet run on the test machine.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "frozen set",
+     "value": "heldout-v1 frozen 2026-10-27: 72 tasks, 12 per role, 4 easy, 4 medium and 4 hard per role",
+     "source": "results/heldout-set.md"
+    },
+    {
+     "metric": "box check",
+     "value": "72/72 reference solutions pass, 72/72 start states fail",
+     "source": "results/heldout-set.md"
+    },
+    {
+     "metric": "manifest sha256",
+     "value": "dc99f4f60aa10a1f70457998dc40cfbf5774c0af962eedff080a0df462da3514 (505 files)",
+     "source": "results/heldout-set.md"
+    },
+    {
+     "metric": "validation on the test machine",
+     "value": "VERIFY OK: set sha256 matches, 505 files, 72 tasks. 72/72 start states fail (48 missing, 24 test). _reference was never copied to the test machine. Toolchain: go1.27.3, make 4.4.1, gcc 15.2, python 3.14.4, tar 1.35. sha256sum and od there are uutils coreutils 0.8, not GNU; the hashes agree.",
+     "source": "results/heldout-set.md",
+     "note": "lab-reported"
+    }
+   ],
    "confounds": [
     "The 12-task dev set was used to tune every fix so far. Results on it can overfit.",
     "Task difficulty sets the pass rate floor. Report per-role pass rates."
@@ -1549,7 +1587,9 @@
     "full-offload"
    ],
    "unlocks": [
-    "c2-confirm"
+    "c2-confirm",
+    "strata-mtp-prefill",
+    "c6s-confirm"
    ],
    "test": "Run C1 on the full held-out set with the same harness, task order and power logging as c0-anchor. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json.",
    "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed.",
@@ -1656,7 +1696,8 @@
    "status": "queued",
    "result": null,
    "confounds": [
-    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates."
+    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates.",
+    "If c6s-confirm is formed, also report C6 against C6S on the same held-out runs."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes. Stop on any screen blanking."
@@ -1680,168 +1721,436 @@
     "Game detection depends on process names and fullscreen state. Anti-cheat clients left open all day can hold the pause."
    ],
    "safety_notes": [
-    "The watcher never stops or touches the game. It only pauses and starts the model server. No power or clock changes."
+    "The watcher never stops or touches the game. It only pauses and starts the model server. No power or clock changes.",
+    "Never run wsl --shutdown, also not as a fallback on GPU errors. The trigger only stops and starts the llama-server unit."
    ]
+  },
+  {
+   "id": "strata-fit",
+   "tier": "inference",
+   "title": "Strata fit and build check",
+   "goal": "Check whether the Strata engine and a large MoE model fit this card, system RAM under the WSL2 cap, and the model disk, before any Strata run.",
+   "prereqs": [
+    "ram-wsl-check"
+   ],
+   "unlocks": [
+    "strata-replicate"
+   ],
+   "test": "Mostly read-only. 1) Record free disk on the model disk, WSL2 MemTotal and MemAvailable with the lab server stopped, swap, and the disk type of the model disk. 2) Build or fetch the pinned Strata release for sm_86 inside WSL2 (CPU-only compile, no GPU job at the same time). Record the engine log line for KV streaming and pinned memory under WSL2. 3) Fetch Qwen3.6-35B-A3B UD-Q4_K_XL from unsloth/Qwen3.6-35B-A3B-MTP-GGUF into the WSL2 ext4 disk (not /mnt/c), check the LFS sha256, and sum its tensor bytes by class with gguf_split.py. 4) Compute the fit: model RAM need plus engine and OS against the WSL2 cap minus 2 GiB, and download size against free disk minus a floor of 10 GiB. Do the same arithmetic, with no download, for the 125B Flash-Next packs.",
+   "metric": "Free disk GiB, WSL2 MemTotal and MemAvailable, swap, model file sha256 match, tensor GiB by class, fit verdict per model (fits, tight, does not fit) with the arithmetic.",
+   "target": "Target: a fit verdict with numbers for the 35B MoE and for each 125B pack. strata-replicate runs only on a model with a fits or tight verdict.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Strata docs: under WSL the NVIDIA driver pins only about 1 GB, so KV streaming (split KV) is off and experts are copied from unpinned RAM, which makes prompts slower than on native Linux (Strata docs/DETAILS.md).",
+    "Strata docs: a Flash-Next 125B pack fits when RAM is at least its experts plus about 10 GB. Experts in shard 1: Q2_0 34 GB, IQ2_XS 35.5 GB, Coder IQ1_M 23 GB. The second shard (28.8 GB) stays on the SSD (Strata docs/MODELS.md).",
+    "Desk estimate before the check: no 125B pack fits in system RAM under the WSL2 cap (23 GiB, minus 2 GiB margin). The 35B MoE at UD-Q4_K_XL is tight: an RTX 2080 run of the same file kept 18.75 GiB of experts in host RAM at 16K context (reported upstream, not measured here)."
+   ],
+   "safety_notes": [
+    "No power-limit, clock or undervolt changes.",
+    "No reboot, shutdown or sleep. Never run wsl --shutdown.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
+    "The compile runs with no GPU job at the same time.",
+    "Downloads are throttled and keep a 10 GiB disk floor. No .wslconfig change."
+   ],
+   "public_note": "Candidate, unmeasured. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source"
+  },
+  {
+   "id": "strata-replicate",
+   "tier": "inference",
+   "title": "Replicate the 8 GB Strata recipe (35B MoE)",
+   "goal": "Reproduce the published 8 GB Strata recipe on this card with the largest MoE that fits, and compare it with llama.cpp on the same model file.",
+   "prereqs": [
+    "heldout-set",
+    "strata-fit",
+    "ram-wsl-check"
+   ],
+   "unlocks": [
+    "strata-mtp-prefill",
+    "c6s-confirm",
+    "strata-125b-probe"
+   ],
+   "test": "Model: Qwen3.6-35B-A3B UD-Q4_K_XL (the largest MoE that the fit check passes; the 125B pack does not fit). Arm A: llama.cpp b11734, experts in system RAM with --n-cpu-moe, the moe-offload method. Arm B: the pinned Strata release with the upstream 8 GB recipe for this model (16K context, MTP drafts on, auto prompt chunk, explicit expert slots). Same file, same sha256, same prompts. Run AB BA order, 2 boots per arm. 1) Speed probes, server-reported: prefill at 2K, 8K and 16K prompts, decode short and after a 12K fill, agent-turn decode, n >= 3 per point. Cold load time from the ext4 disk. 2) Agreement: 20 fixed prompts, greedy, 256 tokens, MTP off in both arms; first divergence position and top-1 token agreement. Then MTP on in Arm B against MTP off: the greedy text must match. 3) 36-run dev agent bench in each arm. The held-out set is not used here.",
+   "metric": "Prefill and decode tok/s per point (median and range), agent decode tok/s, MTP acceptance, cold load s, greedy agreement (%, first divergence), dev passes and passes/h per arm, peak VRAM MiB, peak RAM and swap, disk bytes written.",
+   "target": "Target: a paired engine comparison with every number labeled. Strata counts as a win only if agent decode or passes/h is at least 1.10x the llama.cpp arm, the dev pass rate does not regress (paired CI low > -5 pp), greedy agreement is reported, and the fit rule holds (VRAM <= 8192 MiB, RAM < WSL2 cap - 2 GiB).",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "Headline: on an RTX 2080 8 GB with 64 GB RAM, a 125B MoE (Qwen3.8-Flash-Next) went from about 201 to about 845 tok/s prefill near 121K context (about 4.2x) and from 22-24 to about 57 tok/s chat decode, on Strata 0.2.8. This is a historical log across engine versions and a model change (Q2_0 to Swift 1.5 IQ2_XS), not one paired test. The baseline for the 4x is the first Strata runs on that card, not llama.cpp (reported upstream, not measured here)",
+    "Same 35B file on the RTX 2080 with Strata 0.1.45: greedy decode with MTP 30.7-32.6 tok/s (57-59% of drafts accepted), prefill 88-109 tok/s at 1.8K and 88.3 at 11.2K, 18.75 GiB experts in host RAM, 16K context (reported upstream, not measured here)",
+    "llama.cpp with experts in RAM on the RTX 2080, Qwen3.5-35B-A3B IQ2_XXS (a different model and quant, not paired): about 40 tok/s decode and 1,040 tok/s prefill. So on the 35B class the upstream evidence does not show a Strata gain on 8 GB (reported upstream, not measured here)",
+    "The 3070 is sm_86 (Ampere). Strata turns on other default kernels for sm_86 than for the RTX 2080 (sm_75), so the 2080 numbers do not transfer.",
+    "Under WSL2 Strata keeps the KV cache in VRAM and copies experts from unpinned RAM (Strata docs). Prompts can be slower than on native Linux.",
+    "The 125B result does not carry over: its experts need more system RAM than the WSL2 cap."
+   ],
+   "safety_notes": [
+    "No power-limit, clock or undervolt changes.",
+    "No reboot, shutdown or sleep. Never run wsl --shutdown.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
+    "Bind the server to the loopback address only. No outside traffic.",
+    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Stop on any screen blanking under load and log power and temperature.",
+    "Restore the C1 config after the run and verify it with one health request and one 6000-token request; halt the chain if the restore fails."
+   ],
+   "public_note": "Candidate, unmeasured. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source"
+  },
+  {
+   "id": "strata-mtp-prefill",
+   "tier": "inference",
+   "title": "Strata MTP drafts and prompt chunk sizing",
+   "goal": "Measure the MTP draft and prompt-chunk settings on the Strata 35B config, the two techniques of the upstream recipe that the 35B engine path supports.",
+   "prereqs": [
+    "strata-replicate",
+    "c1-anchor"
+   ],
+   "unlocks": [
+    "c6s-confirm"
+   ],
+   "test": "Two upstream techniques on the Strata 35B config: multi-token prediction drafts and prompt chunk sizing. Settings are picked on the dev bench; one paired held-out run is a gate only.",
+   "metric": "Dev: decode and prefill tok/s, MTP acceptance per role, passes/h. Held-out: paired pass table, McNemar p, passes/h, decode tok/s, Wh per pass. Agreement: greedy text of the chosen arm against MTP off on 20 fixed prompts.",
+   "target": "Target: the chosen arm meets the tier beat rule against the base (one of: McNemar p < 0.05, passes/h >= 1.10x, decode >= 1.10x) with no regression (paired CI low > -5 pp). Greedy text with MTP on matches MTP off; a mismatch is reported and the arm loses unless it is a known rounding change.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "On the RTX 2080 125B config, fixing MTP and prompt batch sizing took short decode from about 24 to 31-33 tok/s and 16K prefill from 245 to 739 tok/s (reported upstream, not measured here)",
+    "Strata docs (Qwen3.6 page): prompt chunk 512 gives text identical to the base engine; other chunk sizes change rounding.",
+    "RTX 2080, same 35B file: chunk 1024 cut the expert slots that fit and decode fell, so it was reverted; chunk 2048 with 4 slots did not fit (reported upstream, not measured here)",
+    "MTP drafts run only when one request is active, unless batch drafts are turned on (Strata docs)."
+   ],
+   "safety_notes": [
+    "No power-limit, clock or undervolt changes.",
+    "No reboot, shutdown or sleep. Never run wsl --shutdown.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
+    "Bind the server to the loopback address only. No outside traffic.",
+    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Stop on any screen blanking under load and log power and temperature."
+   ],
+   "public_note": "Candidate, unmeasured. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source"
+  },
+  {
+   "id": "strata-125b-probe",
+   "tier": "capstone",
+   "title": "125B MoE boundary probe (experts from the SSD)",
+   "goal": "Find out if a 125B MoE runs at all on this setup with most experts read from the SSD, since its experts do not fit in system RAM.",
+   "prereqs": [
+    "strata-replicate"
+   ],
+   "unlocks": [
+    "strata-kv-split-loan",
+    "strata-attn-tile",
+    "strata-resident-routing"
+   ],
+   "test": "Only with the owner's go (disk space and download). Strata low-RAM mode with the smallest full 125B pack that the fit check allows (Coder IQ1_M, 58.4 GB download, or Gyro-S, 58.5 GB plus a 2.7 GB draft), weights on the ext4 model disk. Short probes only: prefill at 2K and 8K, decode short, n = 3, RAM, swap and disk read MB/s at 1 s. No agent bench unless decode reaches the usable bar.",
+   "metric": "Prefill and decode tok/s, disk read MB/s, disk bytes written, peak RAM and swap, peak VRAM.",
+   "target": "Target: a boundary record. Usable bar for any follow-up: agent decode at least 18 tok/s, the moe-offload bar.",
+   "status": "needs_owner",
+   "result": null,
+   "confounds": [
+    "Strata docs: with a small card in low-RAM mode most experts come from the SSD and it is much slower.",
+    "A 125B pack needs about 58 to 67 GB of disk. With the 35B file kept, free disk on the model disk may fall under the floor; one of them has to go, which is the owner's call.",
+    "Strata docs: Gyro-S is the smallest Flash-Next option and has lower quality; Coder keeps 256 of 512 experts per layer and is weaker outside code."
+   ],
+   "safety_notes": [
+    "No power-limit, clock or undervolt changes.",
+    "No reboot, shutdown or sleep. Never run wsl --shutdown.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
+    "Bind the server to the loopback address only. No outside traffic.",
+    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Stop on any screen blanking under load and log power and temperature.",
+    "Needs the owner's go for the disk space. No .wslconfig change. Stop if swap use rises above 1 GiB."
+   ],
+   "public_note": "Candidate, unmeasured. Needs the owner. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source"
+  },
+  {
+   "id": "strata-kv-split-loan",
+   "tier": "inference",
+   "title": "Split KV cache and VRAM loans (125B path)",
+   "goal": "Test the two VRAM-sharing techniques of the RTX 2080 recipe: KV capacity in system RAM with only part of it on the card, and lending decode buffers to prefill.",
+   "prereqs": [
+    "strata-125b-probe",
+    "kv-cache-types"
+   ],
+   "unlocks": [],
+   "test": "Only if strata-125b-probe reaches the usable bar. Paired on the 125B config: KV streaming with a 32K resident window off and on, then prefill loan (borrow) on and off. Long-prompt probes at 32K and 100K, needle checks, and greedy agreement on 20 prompts.",
+   "metric": "Prefill tok/s at 32K and 100K, decode after fill, needle passes, greedy agreement, peak VRAM and RAM.",
+   "target": "Target: prefill at least 1.10x with decode at least 0.95x, needles all pass, greedy text identical (KV streaming) or a reported rounding change (loan).",
+   "status": "blocked",
+   "result": null,
+   "confounds": [
+    "Strata docs: KV streaming is never on under WSL. On this setup the split KV arm is expected to be not applicable unless the engine runs outside WSL2, which is the owner's call.",
+    "Strata source: the 35B engine path (src/qwen35) has neither KV streaming nor the prefill loan; both are in the Flash-Next path only.",
+    "RTX 2080, 125B: 128K capacity with 32K of KV on the card took a real 30K prompt from 202 to 558-583 tok/s with identical outputs; VRAM loans took a 122K prefill from 689.1 to 838.8 tok/s with decode at about 56 tok/s (reported upstream, not measured here)"
+   ],
+   "safety_notes": [
+    "No power-limit, clock or undervolt changes.",
+    "No reboot, shutdown or sleep. Never run wsl --shutdown.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
+    "Bind the server to the loopback address only. No outside traffic.",
+    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Stop on any screen blanking under load and log power and temperature."
+   ],
+   "public_note": "Candidate, unmeasured. Blocked by strata-125b-probe. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source"
+  },
+  {
+   "id": "strata-attn-tile",
+   "tier": "inference",
+   "title": "Attention tile retune for sm_86 (125B path)",
+   "goal": "Retune the exact-attention scorer tile for the 3070 the way the RTX 2080 recipe did for sm_75.",
+   "prereqs": [
+    "strata-125b-probe"
+   ],
+   "unlocks": [],
+   "test": "Only if strata-125b-probe reaches the usable bar. Sweep the scorer tile options that Strata exposes for sm_86 against its default, on a 20K and a 100K real prompt. Every arm must match the reference scores bit for bit on all scoring calls of the 100K prompt.",
+   "metric": "Prefill tok/s at 20K and 100K, scorer calls checked and mismatches, decode tok/s.",
+   "target": "Target: prefill at least 1.10x at 100K with zero score mismatches and decode at least 0.95x.",
+   "status": "blocked",
+   "result": null,
+   "confounds": [
+    "RTX 2080: a Turing tile (32 queries, 128 threads) took a 121,776-token prefill from 580.6 to 696.1 tok/s (+19.9%) and matched the reference on all 5,712 scoring calls. One sample per configuration (reported upstream, not measured here)",
+    "Strata already turns on sm_86-specific exact attention defaults; the gain left for a retune is unknown."
+   ],
+   "safety_notes": [
+    "No power-limit, clock or undervolt changes.",
+    "No reboot, shutdown or sleep. Never run wsl --shutdown.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
+    "Bind the server to the loopback address only. No outside traffic.",
+    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Stop on any screen blanking under load and log power and temperature.",
+    "A CUDA compile runs with no GPU job at the same time."
+   ],
+   "public_note": "Candidate, unmeasured. Blocked by strata-125b-probe. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source"
+  },
+  {
+   "id": "strata-resident-routing",
+   "tier": "inference",
+   "title": "Residency-biased expert routing (125B path)",
+   "goal": "Test the router bias toward experts already in VRAM. It changes which experts run, so it can change outputs.",
+   "prereqs": [
+    "strata-125b-probe",
+    "loop-guard"
+   ],
+   "unlocks": [],
+   "test": "Only if strata-125b-probe reaches the usable bar. Paired: routing prior off and at the upstream value. Agreement on 20 fixed prompts: top-1 token agreement and KL against off at each step. Dev agent bench with loop events per run; then a paired held-out run as a gate only.",
+   "metric": "Agent decode tok/s, expert-cache hit %, top-1 agreement and mean KL against off, loop events per run, dev and held-out pass rate.",
+   "target": "Target: decode at least 1.10x, held-out pass rate non-inferior (paired CI low > -5 pp), loop events not higher, top-1 agreement reported. A loss on any correctness check is a loss.",
+   "status": "blocked",
+   "result": null,
+   "confounds": [
+    "RTX 2080, 125B: agent decode 48.1 to 60.5 tok/s (+25.9%), expert-cache hits about 51% to 80%; scored tasks 30/30 without it and 29/30 with it (reported upstream, not measured here)",
+    "Strata docs: the routing prior is off by default since 0.2.8. On an RTX 3060 it passed 4.5 of 10 agent tasks on average over 4 runs, against 5.6 over 7 runs with it off, and it can repeat itself in long agent sessions. Strata recommends it for chat, not long agent runs.",
+    "Strata source: the 35B engine path has no routing prior."
+   ],
+   "safety_notes": [
+    "No power-limit, clock or undervolt changes.",
+    "No reboot, shutdown or sleep. Never run wsl --shutdown.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
+    "Bind the server to the loopback address only. No outside traffic.",
+    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Stop on any screen blanking under load and log power and temperature."
+   ],
+   "public_note": "Candidate, unmeasured. Blocked by strata-125b-probe. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source"
+  },
+  {
+   "id": "c6s-confirm",
+   "tier": "configs",
+   "title": "C6S confirm (Strata)",
+   "goal": "Confirm tier C6S (the 35B MoE on the Strata engine with the winning Strata settings) against the best formed tier on the held-out set.",
+   "prereqs": [
+    "c1-anchor",
+    "strata-replicate",
+    "strata-mtp-prefill"
+   ],
+   "unlocks": [
+    "bigger-class"
+   ],
+   "test": "Tier C6S on the held-out set against the best formed tier. Apply the tier pass criteria.",
+   "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per pass, peak VRAM MiB.",
+   "target": "Target: meets the tier pass criteria against the best formed tier, with peak RAM under the WSL2 cap minus 2 GiB. Not formed if strata-replicate and strata-mtp-prefill both lost.",
+   "status": "queued",
+   "result": null,
+   "confounds": [
+    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates.",
+    "C6S and C6 use the same model family on different engines. When c6-confirm runs later, it also reports C6 against C6S."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes. Stop on any screen blanking."
+   ],
+   "public_note": "Candidate, unmeasured. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source"
   }
  ],
  "next_order": [
   {
    "rank": 1,
-   "id": "heldout-set",
-   "reason": "Frozen held-out set. Every tier is judged on it."
-  },
-  {
-   "rank": 2,
-   "id": "c0-anchor",
-   "reason": "C0 floor on the held-out set."
-  },
-  {
-   "rank": 3,
-   "id": "c1-anchor",
-   "reason": "C1 on the held-out set. Base for every higher tier."
-  },
-  {
-   "rank": 4,
    "id": "loop-guard",
    "reason": "In progress. 28 of 36 runs in the full-offload run had a loop event."
   },
   {
-   "rank": 5,
+   "rank": 2,
+   "id": "strata-fit",
+   "reason": "Fit and build check for the Strata engine and large MoE models."
+  },
+  {
+   "rank": 3,
+   "id": "strata-replicate",
+   "reason": "Reproduce the published 8 GB Strata recipe against llama.cpp on the same model file."
+  },
+  {
+   "rank": 4,
    "id": "sampler",
    "reason": "Two sampler arms, per request, no server change."
   },
   {
+   "rank": 5,
+   "id": "c0-anchor",
+   "reason": "C0 floor on the held-out set."
+  },
+  {
    "rank": 6,
+   "id": "c1-anchor",
+   "reason": "C1 on the held-out set. Base for every higher tier."
+  },
+  {
+   "rank": 7,
+   "id": "strata-mtp-prefill",
+   "reason": "Two upstream techniques on the Strata config. After the C1 anchor so the held-out gate has a formed tier."
+  },
+  {
+   "rank": 8,
+   "id": "c6s-confirm",
+   "reason": "C6S against the best formed tier on the held-out set."
+  },
+  {
+   "rank": 9,
    "id": "c2-confirm",
    "reason": "C2 against C1 on the held-out set."
   },
   {
-   "rank": 7,
+   "rank": 10,
    "id": "thinking-budget",
    "reason": "Bounded thinking for the planner role, per request."
   },
   {
-   "rank": 8,
+   "rank": 11,
    "id": "agent-stack",
    "reason": "C3 against C2 on the held-out set."
   },
   {
-   "rank": 9,
+   "rank": 12,
    "id": "spec-ngram",
    "reason": "Short run with no VRAM cost."
   },
   {
-   "rank": 10,
+   "rank": 13,
    "id": "fit-map",
    "reason": "Before parallel-slots: the largest slot count runs only if the fit map shows the KV fits. Also settles the model file check."
   },
   {
-   "rank": 11,
+   "rank": 14,
    "id": "parallel-slots",
    "reason": "Fixed context per slot; the largest slot count only if it fits."
   },
   {
-   "rank": 12,
+   "rank": 15,
    "id": "c4-confirm",
    "reason": "C4 against C3 on the held-out set."
   },
   {
-   "rank": 13,
+   "rank": 16,
    "id": "quant-choice",
    "reason": "Which quant to pick at full offload. It uses the fit-map limits."
   },
   {
-   "rank": 14,
+   "rank": 17,
    "id": "dense-newer",
    "reason": "Which newer small model to pick at full offload. It uses the fit-map limits."
   },
   {
-   "rank": 15,
+   "rank": 18,
    "id": "c5-confirm",
    "reason": "C5 against C4 on the held-out set."
   },
   {
-   "rank": 16,
+   "rank": 19,
    "id": "offload-curve",
    "reason": "Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30."
   },
   {
-   "rank": 17,
+   "rank": 20,
    "id": "moe-offload",
    "reason": "Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
   },
   {
-   "rank": 18,
+   "rank": 21,
    "id": "c6-confirm",
    "reason": "C6 against C5 on the held-out set."
   },
   {
-   "rank": 19,
+   "rank": 22,
    "id": "pause-handoff",
    "reason": "Pause and start path of the prepared package (manual trigger)."
   },
   {
-   "rank": 20,
+   "rank": 23,
    "id": "uptime-slo",
    "reason": "Background observer: start it, then go on. It blocks nothing."
   },
   {
-   "rank": 21,
+   "rank": 24,
    "id": "auto-pause-trigger",
    "reason": "The watcher only logs games today. This makes it pause and start the server."
   },
   {
-   "rank": 22,
+   "rank": 25,
    "id": "thermal-soak",
    "reason": "C1, no request proxy, 4 h. Full offload runs at 203.1 W mean of a 220 W limit. Logging only."
   },
   {
-   "rank": 23,
+   "rank": 26,
    "id": "watchdog-restart",
    "reason": "Crash recovery with state restored. Back-off is expected to miss 30 s from kill 3 on."
   },
   {
-   "rank": 24,
+   "rank": 27,
    "id": "driver-inventory",
    "reason": "Read-only version inventory. Upgrade candidates are research entries only."
   },
   {
-   "rank": 25,
+   "rank": 28,
    "id": "wh-per-pass",
    "reason": "Free with each bench once power logging starts before task 1."
   },
   {
-   "rank": 26,
+   "rank": 29,
    "id": "spec-draft",
    "reason": "Bigger speed-up, but it costs VRAM."
   },
   {
-   "rank": 27,
+   "rank": 30,
    "id": "best-of-n",
    "reason": "Uses spare slots to lift the 0-pass roles."
   },
   {
-   "rank": 28,
+   "rank": 31,
    "id": "agent-workers",
    "reason": "More jobs per hour if the CPU keeps up."
   },
   {
-   "rank": 29,
+   "rank": 32,
    "id": "fp16-workloads",
    "reason": "The only place the unlock pays. Unlocked-only numbers until locked-ab runs."
   },
   {
-   "rank": 30,
+   "rank": 33,
    "id": "bigger-class",
-   "reason": "Capstone and C7 confirm against C6."
+   "reason": "Capstone and C7 confirm against the better of C6 and C6S."
   },
   {
-   "rank": 31,
+   "rank": 34,
    "id": "useful-work-per-wh",
    "reason": "Capstone. Runs when its prereqs are measured."
   },
   {
-   "rank": 32,
+   "rank": 35,
    "id": "long-soak",
    "reason": "Last. 24 h on C1, no request proxy."
   }
