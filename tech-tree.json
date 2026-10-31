@@ -1,6 +1,6 @@
 {
  "name": "RTX 3070 tech tree",
- "version": "1.5.11",
+ "version": "1.5.12",
  "updated": "2026-10-31",
  "scope": "Get the most real work from one RTX 3070 8 GB (LHR included) for local LLMs and agent work.",
  "results_dir": "results/",
@@ -1140,6 +1140,58 @@
      "metric": "verdict",
      "value": "sampler-a (Qwen3 set except min-p, presence 0): 6 of 36, 7.56 passes per hour, not kept. sampler-b (presence 1.5): 8 of 36, 14.77 passes per hour against 14.54 (unlocked base), truncated calls 4 against 15 for sampler-a. sampler-b is kept in the locked best config only, pending an unlocked re-confirm",
      "source": "results/sampler.md"
+    },
+    {
+     "metric": "sampler.vs-base-locked",
+     "value": "CONFOUNDED: indicative only, not a result. In-lock re-scores against base-locked (LOCKED), one entry with arms; status and both best fields unchanged. Passes: arm b (sampler-b) 8 of 36 (Wilson 95% CI 11.7-38.1%), arm a (sampler-a) 6 of 36 (7.9-31.9%), base-locked 4 of 36 (4.4-25.3%); the intervals overlap. Passes ratio b 2.0, a 1.5. Passes per hour ratio b 3.648, a 1.869: mostly wall-clock (bench wall time for 36 runs about 0.99 h base-locked, 0.54 h sampler-b, 0.79 h sampler-a; wall factor 1.82 for b, 1.25 for a). Flags differ: base-locked passes min-p 0.05, presence 0 and a 4096-token output cap (n-predict) explicitly on the server line; The sampler arms ran the default server line without those three (they set temperature, top-p, top-k, min-p and presence per request through the node proxy; the output cap was not set). Epoch checked: same display epoch as base-locked (post-swap, display off the 3070, LOCKED in-session mma); no epoch confound. A clean verdict needs a same-flags, same-epoch arm.",
+     "arms": {
+      "a": {
+       "passes": 6,
+       "runs": 36,
+       "passes_ci95_pct": [
+        7.9,
+        31.9
+       ],
+       "base_passes": 4,
+       "base_runs": 36,
+       "base_passes_ci95_pct": [
+        4.4,
+        25.3
+       ],
+       "passes_per_hour": 7.56,
+       "base_passes_per_hour": 4.05,
+       "pph_ratio_vs_base_locked": 1.869,
+       "passes_ratio_vs_base_locked": 1.5,
+       "arm_id": "sampler-a"
+      },
+      "b": {
+       "passes": 8,
+       "runs": 36,
+       "passes_ci95_pct": [
+        11.7,
+        38.1
+       ],
+       "base_passes": 4,
+       "base_runs": 36,
+       "base_passes_ci95_pct": [
+        4.4,
+        25.3
+       ],
+       "passes_per_hour": 14.77,
+       "base_passes_per_hour": 4.05,
+       "pph_ratio_vs_base_locked": 3.648,
+       "passes_ratio_vs_base_locked": 2.0,
+       "arm_id": "sampler-b"
+      }
+     },
+     "source": "results/sampler.vs-base-locked.md",
+     "tag": "flags confound: indicative only, not a result (server flags differ from base-locked; Wilson 95% CIs overlap)",
+     "confounds": [
+      "Flags differ: base-locked passes min-p 0.05, presence 0 and a 4096-token output cap (n-predict) explicitly on the server line; The sampler arms ran the default server line without those three (they set temperature, top-p, top-k, min-p and presence per request through the node proxy; the output cap was not set).",
+      "Epoch checked: same display epoch as base-locked (post-swap, display off the 3070, LOCKED in-session mma); no epoch confound."
+     ],
+     "clean_verdict_needs": "a same-flags, same-epoch arm",
+     "flags_confound": true
     }
    ],
    "confounds": [
@@ -1164,7 +1216,7 @@
    "test": "Thinking on for one role only, with a bounded budget, sent per request. Every other role stays thinking-off. 36-run core agent bench on the best config.",
    "metric": "Passes per hour, pass rate (overall and pm), board Wh per task, truncated tool calls and length stops per role (baseline 9 of 363 calls in the full-offload run: write 5, edit 4).",
    "target": "Keep only if passes per hour beat the base config. Report the pm pass rate and pm truncations separately.",
-   "status": "queued",
+   "status": "in_progress",
    "result": [
     {
      "metric": "baseline output-limit truncations, full-offload run (not this node's result)",
@@ -1231,13 +1283,44 @@
      "metric": "verdict",
      "value": "Negative, indicative only: 5 of 36 and 2.14 passes per hour (locked) against 6 of 36 and 14.54 (full-offload, unlocked). Lock states differ; unlocked-reconfirm reruns it before it counts",
      "source": "results/loop-guard.md"
+    },
+    {
+     "metric": "loop-guard.vs-base-locked",
+     "value": "CONFOUNDED: indicative only, not a result. In-lock re-score against base-locked (LOCKED). Status unchanged. Passes 5 of 36 (Wilson 95% CI 6.1-28.7%) vs base-locked 4 of 36 (4.4-25.3%); passes ratio 1.25, passes per hour ratio 0.529: mostly wall-clock (bench wall time for 36 runs about 2.33 h loop-guard vs 0.99 h base-locked). Flags differ: base-locked passes min-p 0.05, presence 0 and a 4096-token output cap (n-predict) explicitly on the server line; loop-guard ran the default server line without those three (no per-request sampler override, so min-p and presence were the server defaults and the output cap was not set). Epoch checked: same display epoch as base-locked (post-swap, display off the 3070, LOCKED in-session mma); no epoch confound. A clean verdict needs a same-flags, same-epoch arm.",
+     "source": "results/loop-guard.vs-base-locked.md",
+     "tag": "flags confound: indicative only, not a result (server flags differ from base-locked; Wilson 95% CIs overlap)",
+     "confounds": [
+      "Flags differ: base-locked passes min-p 0.05, presence 0 and a 4096-token output cap (n-predict) explicitly on the server line; loop-guard ran the default server line without those three (no per-request sampler override, so min-p and presence were the server defaults and the output cap was not set).",
+      "Epoch checked: same display epoch as base-locked (post-swap, display off the 3070, LOCKED in-session mma); no epoch confound."
+     ],
+     "stats": {
+      "passes": 5,
+      "runs": 36,
+      "passes_ci95_pct": [
+       6.1,
+       28.7
+      ],
+      "base_passes": 4,
+      "base_runs": 36,
+      "base_passes_ci95_pct": [
+       4.4,
+       25.3
+      ],
+      "passes_per_hour": 2.14,
+      "base_passes_per_hour": 4.05,
+      "pph_ratio_vs_base_locked": 0.529,
+      "passes_ratio_vs_base_locked": 1.25
+     },
+     "clean_verdict_needs": "a same-flags, same-epoch arm",
+     "flags_confound": true
     }
    ],
    "confounds": [
     "Locked run against an unlocked baseline: speed, wall time and Wh are not directly comparable.",
     "5 vs 6 passes of 36 is within noise.",
     "Indicative only: the lock states differ. unlocked-reconfirm reruns it unlocked before the verdict counts.",
-    "Will be re-scored against base-locked (same lock state) when it is measured."
+    "Will be re-scored against base-locked (same lock state) when it is measured.",
+    "In-lock re-score against base-locked (loop-guard.vs-base-locked): flags confound: indicative only, not a result (server flags differ from base-locked; Wilson 95% CIs overlap). A clean verdict needs a same-flags, same-epoch arm."
    ],
    "safety_notes": [],
    "public_note": "Measured (locked mode), negative and indicative only: 5 of 36 passes, 2.14 passes per hour against 14.54 on the unlocked base. Needs an unlocked rerun before it counts",
@@ -1472,7 +1555,8 @@
    "confounds": [
     "An earlier pause bench at -ngl 30, ctx 65536, KV q4_0/q4_0 measured pause under 7 s wall and slot restore in 180 to 391 ms (source: results/pause-bench.md). The full-offload config uses KV q8_0/q8_0, so slot files are larger. Measure again at this config.",
     "The package defaults (ctx 24576, -ngl 30) are not the full-offload config. Set the full-offload values before the test.",
-    "Lab finding: the game watcher only logs a game start. It does not call the pause. The automatic trigger is a separate node, auto-pause-trigger."
+    "Lab finding: the game watcher only logs a game start. It does not call the pause. The automatic trigger is a separate node, auto-pause-trigger.",
+    "An earlier pause bench at -ngl 30, ctx 65536, KV q4_0/q4_0 measured pause under 7 s wall and slot restore in 180 to 391 ms (source: results/pause-bench.md). The full-offload config uses KV q8_0/q8_0, so slot files are larger. Measure again at this config."
    ],
    "safety_notes": [
     "Stop on any screen blanking. No power, clock or undervolt changes.",
@@ -1567,6 +1651,7 @@
    "status": "queued",
    "result": null,
    "confounds": [
+    "WSL nvidia-smi utilization counts the whole GPU, Windows apps too. Count GPU busy only over unpaused minutes (source: the 24/7 package notes).",
     "WSL nvidia-smi utilization counts the whole GPU, Windows apps too. Count GPU busy only over unpaused minutes (source: the 24/7 package notes)."
    ],
    "safety_notes": [
@@ -1715,51 +1800,36 @@
    "status": "measured",
    "result": [
     {
-     "metric": "mode",
-     "value": "locked mode, post-swap, display off the card for the whole run",
+     "metric": "held-out anchor (C0, LOCKED, post-swap)",
+     "value": "10 of 72 held-out passes (13.9%, Wilson 95% CI 7.7-23.7%), 72 of 72 runs completed",
      "source": "results/c0-rerun.md"
     },
     {
-     "metric": "held-out passes",
-     "value": "10 of 72 (Wilson 95% CI 0.08 to 0.24)",
-     "source": "results/c0-rerun.md"
-    },
-    {
-     "metric": "passes per hour",
-     "value": "4.51",
-     "source": "results/c0-rerun.md"
-    },
-    {
-     "metric": "decode",
-     "value": "16.0 tok/s (median)",
-     "source": "results/c0-rerun.md"
-    },
-    {
-     "metric": "board energy",
-     "value": "1.38 Wh per task, 9.95 Wh per pass",
+     "metric": "throughput and energy",
+     "value": "4.51 passes per hour, median decode 16.0 tok/s, 1.38 board Wh per task, 9.95 board Wh per pass",
      "source": "results/c0-rerun.md"
     },
     {
      "metric": "peak VRAM",
-     "value": "5749 MiB, 0 out-of-memory lines",
+     "value": "5749 MiB (1 s power log), 0 OOM lines",
      "source": "results/c0-rerun.md"
     },
     {
-     "metric": "use",
-     "value": "The C0 anchor for pairing. c1-anchor is compared against it.",
+     "metric": "launch line (recorded)",
+     "value": "-ngl 30, ctx 24576, KV q4_0/q4_0, flash attention on, 1 slot, temperature 0.2, top-k 20, top-p 0.95, min-p 0.05, presence 0, max output 4096",
      "source": "results/c0-rerun.md"
     }
    ],
    "confounds": [
-    "C0 server args are inferred from the lab defaults at that time. Record the exact launch line this time.",
     "Replaces c0-anchor (pre-swap, confounded) as the C0 anchor. Anchors do not span the swap.",
     "Try 1 was OOM-killed: a held-out task's test binary grew to about 20 GB (not the server). The try was discarded and the run relaunched.",
-    "A per-test memory cap is staged and off: MemoryMax 8G, no swap, around the held-out test command only (not the model server). It turns on by itself after a second OOM kill in the node within 24 hours, and carries over to c1-anchor. A capped kill counts as a fail with a reason."
+    "C0 ran with no test memory cap on held-out test processes. The c1-anchor rerun uses a 12G cap and is tagged against C0 uncapped.",
+    "The pre-swap c0-anchor archive (15 of 72) is kept and is not used for pairing."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes."
    ],
-   "public_note": "In progress: 33 of 72 runs done, 6 passes so far (partial, not a result). The C0 anchor for pairing. A per-test memory cap is staged and turns on only after a second out-of-memory kill"
+   "public_note": "Measured (locked mode, post-swap): 10 of 72 held-out passes (Wilson 95% CI 7.7-23.7%), 4.51 passes per hour. This is the C0 anchor for pairing"
   },
   {
    "id": "c1-anchor",
@@ -1777,17 +1847,27 @@
     "c6s-confirm",
     "llama-native-sm86"
    ],
-   "test": "Run C1 on the full held-out set with the same harness, task order and power logging as c0-rerun. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json. Post-swap: the display stays off the 3070 for the whole run.",
+   "test": "Run C1 on the full held-out set with the same harness, task order and power logging as c0-rerun. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json. Post-swap: the display stays off the 3070 for the whole run. Rerun: all 72 tasks with a 12G memory cap on test processes from the start. A capped kill counts as a fail. Also report a kill-excluded sensitivity table.",
    "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed.",
    "target": "Target: all held-out runs completed (anchor), and meets the tier pass criteria against C0.",
    "status": "queued",
-   "result": null,
+   "result": [
+    {
+     "metric": "status",
+     "value": "Needs rerun: result invalid: comparison never ran; rerun queued (72 of 72 tasks, memory cap 12G on test processes for all tiers, a capped kill counts as a fail, tagged against C0 uncapped, plus a kill-excluded sensitivity table). The first run did not complete all tasks; its numbers are withheld",
+     "source": "results/c1-anchor.md",
+     "note": "invalid run, not a result"
+    }
+   ],
    "confounds": [
-    "C1 is free and public. It is the base for every higher tier."
+    "C1 is free and public. It is the base for every higher tier.",
+    "The rerun caps test processes at 12G; C0 ran uncapped (tag: memcap 12G vs C0 uncapped). A kill-excluded sensitivity table is reported next to the main paired table.",
+    "C0 had no OOM, but there is no per-test peak-RSS data for C0, so we can't rule out that a cap would have changed C0's result. Per-test peak RSS is logged for every run from the C1 rerun on."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes."
-   ]
+   ],
+   "public_note": "Needs rerun: result invalid: comparison never ran; rerun queued (72 of 72 tasks, memory cap 12G on test processes for all tiers, a capped kill counts as a fail, tagged against C0 uncapped, plus a kill-excluded sensitivity table). Comparator: c0-rerun (10 of 72, locked mode, post-swap)"
   },
   {
    "id": "c2-confirm",
@@ -1812,7 +1892,8 @@
    ],
    "safety_notes": [
     "No power, clock or undervolt changes. Stop on any screen blanking."
-   ]
+   ],
+   "public_note": "Held until the c1-anchor rerun pairs cleanly against c0-rerun"
   },
   {
    "id": "c4-confirm",
@@ -2043,7 +2124,7 @@
     },
     {
      "metric": "verdict",
-     "value": "Measured negative for Strata default settings (int8 prompt kernels on): no config boots at 8K or more. No A/B arm ran. strata-mtp-prefill and c6s-confirm are not formed until strata-nokq-boot reports. Final: the port re-check found no void attempt (22 of 22 exited during load from the engine's own VRAM check)",
+     "value": "Measured negative for Strata default settings only (int8 prompt kernels on): no config boots at 8K or more. No A/B arm ran. With the int8 prompt kernels off, Strata boots at 16K with 3 expert slots (strata-nokq-boot), but its prefill is 0.43x of llama.cpp (strata-nokq-speed). Final: the port re-check found no void attempt (22 of 22 exited during load from the engine's own VRAM check)",
      "source": "results/strata-replicate.md"
     },
     {
@@ -2053,7 +2134,7 @@
     },
     {
      "metric": "idle VRAM (desk)",
-     "value": "Upstream idles at 2 MiB, ours at 466 MiB. This difference covers the free-VRAM gap after the weights. The cause of our 466 MiB is unknown; the lab is checking",
+     "value": "Upstream idles at 2 MiB. This card idles at about 466 MiB (desktop GPU with display overhead). This difference covers the free-VRAM gap after the weights",
      "source": "results/strata-2080-vs-3070.md"
     }
    ],
@@ -2069,7 +2150,7 @@
     "The boot search ran post-swap (display off the 3070). Free VRAM after weights did not change from pre-swap.",
     "Port re-check done: strata-boot-search runs only the Strata engine, and it starts and polls one port (8011). All 22 attempts exited during load with the engine's own message \"not enough VRAM (1159 needed, 655 free)\". None was a load timeout. The verdict is final.",
     "The same bug class (server on 8010, check on 8011) was found and fixed in the shared llama.cpp command-line path. That path never ran, so no result is affected.",
-    "Scope: the negative covers Strata default settings only (int8 prompt kernels on). The boot search did not turn these kernels off. strata-nokq-boot tests that."
+    "Scope: the negative covers Strata default settings only (int8 prompt kernels on). strata-nokq-boot turned these kernels off and booted."
    ],
    "safety_notes": [
     "No power-limit, clock or undervolt changes.",
@@ -2080,8 +2161,8 @@
     "Stop on any screen blanking under load and log power and temperature.",
     "Restore the C1 config after the run and verify it with one health request and one 6000-token request; halt the chain if the restore fails."
    ],
-   "public_note": "Measured negative (locked mode) for the default engine settings (int8 prompt kernels on): the Strata engine does not boot the 35B on this card at 16K or 8K, with any expert slot count. All 22 attempts stopped at the engine's own VRAM check (1159 MiB needed, 655 MiB free). Upstream got the same error on the same file and booted only with these kernels off. Their staging buffers are about 1127 of the 1159 MiB (estimate from source). A boot test with these kernels off is queued. Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source",
-   "verdict": "negative (final) for Strata default settings (int8 prompt kernels on)"
+   "public_note": "Measured negative (locked mode) for the default engine settings only (int8 prompt kernels on): the Strata engine does not boot the 35B on this card at 16K or 8K, with any expert slot count. All 22 attempts stopped at the engine's own VRAM check (1159 MiB needed, 655 MiB free). With these kernels off, as upstream did, it boots at 16K with 3 expert slots (strata-nokq-boot), but prefill is 0.43x of llama.cpp (strata-nokq-speed). Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source",
+   "verdict": "negative (final) for Strata default settings only (int8 prompt kernels on)"
   },
   {
    "id": "strata-mtp-prefill",
@@ -2091,7 +2172,8 @@
    "prereqs": [
     "strata-replicate",
     "c1-anchor",
-    "strata-nokq-boot"
+    "strata-nokq-boot",
+    "strata-nokq-speed"
    ],
    "unlocks": [
     "c6s-confirm",
@@ -2106,8 +2188,8 @@
    "result": [
     {
      "metric": "verdict",
-     "value": "Not formed: strata-replicate is a measured negative (no Strata boot at 8K or more). Not run",
-     "source": "results/strata-replicate.md"
+     "value": "Not formed: Strata prefill is below llama.cpp (0.43x at a 2K prompt, strata-nokq-speed). Not run",
+     "source": "results-locked/strata-nokq-speed.md"
     }
    ],
    "confounds": [
@@ -2115,7 +2197,7 @@
     "Strata docs (Qwen3.6 page): prompt chunk 512 gives text identical to the base engine; other chunk sizes change rounding.",
     "RTX 2080, same 35B file: chunk 1024 cut the expert slots that fit and decode fell, so it was reverted; chunk 2048 with 4 slots did not fit (reported upstream, not measured here)",
     "MTP drafts run only when one request is active, unless batch drafts are turned on (Strata docs).",
-    "Not formed until strata-nokq-boot boots. If it boots, the base is the strata-nokq-boot frozen config."
+    "Not formed: strata-nokq-boot boots, but strata-nokq-speed measured Strata prefill at 0.43x of llama.cpp. It reopens only on a new Strata result with prefill at or above llama.cpp."
    ],
    "safety_notes": [
     "No power-limit, clock or undervolt changes.",
@@ -2125,8 +2207,8 @@
     "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
     "Stop on any screen blanking under load and log power and temperature."
    ],
-   "public_note": "Not formed: the Strata engine does not boot the 35B on this card (strata-replicate). Not run",
-   "verdict": "not formed"
+   "public_note": "Not formed: Strata prefill is below llama.cpp (0.43x at a 2K prompt, strata-nokq-speed). Not run",
+   "verdict": "not formed (Strata prefill below llama.cpp)"
   },
   {
    "id": "strata-125b-probe",
@@ -2302,20 +2384,20 @@
    "result": [
     {
      "metric": "verdict",
-     "value": "Not formed: strata-replicate is a measured negative (no Strata boot at 8K or more). Not run",
-     "source": "results/c6s-confirm.md"
+     "value": "Not formed: Strata prefill is below llama.cpp (0.43x at a 2K prompt, strata-nokq-speed). Not run",
+     "source": "results-locked/strata-nokq-speed.md"
     }
    ],
    "confounds": [
     "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates.",
     "C6S and C6 use the same model family on different engines. When c6-confirm runs later, it also reports C6 against C6S.",
-    "Not formed until strata-nokq-boot boots and strata-mtp-prefill runs."
+    "Not formed: strata-nokq-boot boots, but strata-nokq-speed measured Strata prefill at 0.43x of llama.cpp. It reopens only on a new Strata result with prefill at or above llama.cpp."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes. Stop on any screen blanking."
    ],
-   "public_note": "Not formed: the Strata engine does not boot the 35B on this card (strata-replicate). Not run",
-   "verdict": "not formed"
+   "public_note": "Not formed: Strata prefill is below llama.cpp (0.43x at a 2K prompt, strata-nokq-speed). Not run",
+   "verdict": "not formed (Strata prefill below llama.cpp)"
   },
   {
    "id": "llama-native-sm86",
@@ -2464,194 +2546,291 @@
    "test": "C1 full-offload config (llama-server -ngl 99 -fa on, the full-offload ctx and KV). Settled sampler: temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. sampler-b is off. Log the full launch line. 36-run core agent bench, power logged from before task 1. LOCKED, post-swap (display off the 3070), tagged with the in-session mma reading.",
    "metric": "Passes per hour, pass rate with 95% CI, median agent decode tok/s, loop events per run, truncated calls per role, board Wh per pass, peak VRAM MiB.",
    "target": "Target: a complete 36-run locked base. No pass criteria; this is the in-lock reference.",
-   "status": "in_progress",
-   "result": null,
+   "status": "measured",
+   "result": [
+    {
+     "metric": "locked dev-bench base (36-run core bench, LOCKED, post-swap)",
+     "value": "4 of 36 passes, 4.05 passes per hour, median output 35.06 tok/s, 2.31 board Wh per task, 1.278 loop events per run, edit-error rate per edit call 0.4 (40 of 100), bash non-zero 86 of 131 (secondary), output-limit truncations 17, tool error share 0.38, failures {'gofmt': 10, 'review': 6, 'build': 5, 'vet': 5, 'tests': 4, 'rubric': 2}. Variant base. Truncations per role: ci 6 of 67, debugger 0 of 75, implementer 0 of 87, pm 0 of 13, reviewer 0 of 31, testwriter 11 of 103.",
+     "source": "results/base-locked.md"
+    },
+    {
+     "metric": "pass rate",
+     "value": "4 of 36 (Wilson 95% CI 4.4-25.3%)",
+     "source": "results/sampler.vs-base-locked.md"
+    }
+   ],
    "confounds": [
     "Dev set only. Not a held-out result and not a tier anchor.",
-    "loop-guard and sampler (both locked) were scored against the unlocked full-offload base. They will be re-scored against base-locked."
+    "loop-guard and sampler (both locked) are re-scored against base-locked. Those re-scores carry a flags confound: indicative only."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes."
    ],
-   "public_note": "Queued. The C1 full-offload config on the dev bench in locked mode, as the same-lock-state base for later dev-bench results"
+   "public_note": "Measured (locked mode, post-swap): 4 of 36 passes, 4.05 passes per hour on the dev bench. This is the same-lock-state base for later dev-bench results"
   },
   {
    "id": "strata-nokq-boot",
    "tier": "inference",
    "title": "Strata boot with int8 prompt kernels off (35B MoE)",
-   "goal": "Find out if Strata boots the 35B on this card with the int8 (K-quant) prompt kernels off, as in the only upstream config that booted. Boot test only, not a sale candidate.",
+   "goal": "Find out if Strata boots the 35B on this card with the int8 (K-quant) prompt kernels off, as in the only upstream config that booted. Boot test only, not a speed candidate.",
    "prereqs": [
     "strata-replicate",
     "base-locked"
    ],
    "unlocks": [
-    "strata-mtp-prefill"
+    "strata-mtp-prefill",
+    "strata-nokq-speed"
    ],
-   "test": "Strata v0.2.8 release package as installed, unchanged (no file moved, no rebuild). Env: STRATA_MMQ_KQ=0, STRATA_Q36_NO_MMQ=1, STRATA_Q36_PLACE_DEBUG=1. Args: --native <UD-Q4_K_XL MTP gguf, same sha256 as strata-fit> --max-context C --prefill 512 --mtp 2 --expert-slots S. Boot search on dev prompts only: C = 16384, then 8192, then stop. At each C, S = 10, 9 ... 1, then 0 (engine auto). Freeze the first config that boots (highest C, then highest S). A boot is valid only if the engine log shows \"prompt GEMM: the native grouped kernels\" (not \"MMQ (int8)\") and no \"K-quant prompt kernels from\" line. Record the hybrid experts line, the context/prompt chunk/free VRAM line and the chunk-rule debug line. Abort on: peak total VRAM over 7726 MiB (nvidia-smi at 1 s), an OOM kill, WSL RAM peak at or over 21.5 GiB, or MemAvailable under 2 GiB. Log peak RAM and swap, and if the expert arena was pinned or pageable. If it boots: dev prompts only, temperature 0, presence_penalty 0, frequency_penalty 0. Measure prefill at about 2K and at about C-1K, and decode, n = 3 medians, plus MTP acceptance. Run a paired llama.cpp arm in the same locked session on the same prompts at the same C (strata-fit config: q8_0 KV, ub 512, n-cpu-moe from the fit ladder). LOCKED, post-swap.",
+   "test": "Strata v0.2.8 release package as installed, unchanged (no file moved, no rebuild). Env: STRATA_MMQ_KQ=0, STRATA_Q36_NO_MMQ=1, STRATA_Q36_PLACE_DEBUG=1. Args: --native <UD-Q4_K_XL MTP gguf, same sha256 as strata-fit> --max-context C --prefill 512 --mtp 2 --expert-slots S. Boot search on dev prompts only: C = 16384, then 8192, then stop. At each C, S = 10, 9 ... 1, then 0 (engine auto). Freeze the first config that boots (highest C, then highest S). A boot is valid only if the engine log shows the line \"strata-q36: prompt experts on the native grouped kernels\". A \"prompt GEMM:\" line prints only on failure. Record the hybrid experts line, the context/prompt chunk/free VRAM line and the chunk-rule debug line. Abort on: peak total VRAM over 7726 MiB (nvidia-smi at 1 s), an OOM kill, WSL RAM peak at or over 21.5 GiB, or MemAvailable under 2 GiB. Log peak RAM and swap, and if the expert arena was pinned or pageable. If it boots: dev prompts only, temperature 0, presence_penalty 0, frequency_penalty 0. Measure prefill at about 2K and at about C-1K, and decode, n = 3 medians, plus MTP acceptance. Run a paired llama.cpp arm in the same locked session on the same prompts at the same C (strata-fit config: q8_0 KV, ub 512, n-cpu-moe from the fit ladder). LOCKED, post-swap.",
    "metric": "Boot yes or no per (C, S). If it boots: prefill and decode tok/s (n = 3 medians), MTP acceptance, peak VRAM MiB, peak RAM GiB, paired llama.cpp prefill and decode.",
    "target": "Target: a boot at 8K or more with a valid log. A boot makes strata-mtp-prefill and c6s-confirm formable again. No boot at 8K or more stays a measured negative, now with the upstream fix tried.",
-   "status": "queued",
-   "result": null,
+   "status": "measured",
+   "result": [
+    {
+     "metric": "boot",
+     "value": "Strata with the int8 prompt kernels off (STRATA_MMQ_KQ=0) boots Qwen3.6-35B-A3B UD-Q4_K_XL at 16K context (16384) with 3 expert slots. Slots 4-10 fail at load (not enough VRAM for the hybrid experts' buffers)",
+     "source": "results/strata-nokq-boot.md"
+    },
+    {
+     "metric": "engine log",
+     "value": "\"strata-q36: prompt experts on the native grouped kernels\"; hybrid experts 3 of 256 per layer in VRAM (0.22 GiB), 18.75 GiB in pageable host memory",
+     "source": "results/strata-nokq-boot.md"
+    },
+    {
+     "metric": "peak VRAM",
+     "value": "7712 of 7726 MiB (locked fit budget) in the paired speed session (strata-nokq-speed); 7581 MiB in the boot search",
+     "source": "results-locked/strata-nokq-speed.md"
+    },
+    {
+     "metric": "speed",
+     "value": "See strata-nokq-speed. The 24-token boot check is n = 1 with no prefill, so it is not a result",
+     "source": "results/strata-nokq-boot.md"
+    },
+    {
+     "metric": "speed at the frozen config, ~2K prompt (LOCKED, 16K context, 3 expert slots, paired llama.cpp arm)",
+     "value": "Strata prefill 0.43x llama.cpp (69.5 vs 162.4 tok/s, n=3 each); Strata decode 1.27x llama.cpp (29.9 vs 23.6 tok/s, n=3 each); MTP acceptance 72.4% (n=3). Dev prompts only, temperature 0. No promotion, no correctness claim.",
+     "source": "results-locked/strata-nokq-speed.md",
+     "mode": "LOCKED",
+     "tag": "measured, no promotion"
+    },
+    {
+     "metric": "speed at ~15K prompt",
+     "value": "n=0 by context overflow, not a failure of either server: the probe prompt tokenized to 16,791 tokens, over the 16,384-token context, and both servers refused it. A ~14K-token probe (prompt plus reply under 16K, n=3, both servers, same paired config) is queued at low priority after the c1-anchor rerun.",
+     "source": "results-locked/strata-nokq-speed.md",
+     "mode": "LOCKED",
+     "tag": "n=0 (context overflow)"
+    }
+   ],
    "confounds": [
     "No correctness claim and no promotion. Dev prompts only.",
-    "Upstream prefill with these kernels off was 88-109 tok/s (reported upstream, not measured here). Our llama.cpp 35B prefill is about 230-315 tok/s (locked). So this is a boot test, not a sale candidate.",
-    "Free-VRAM room with the kernels off is an estimate from source (about 8 slots at 8K, 2 at 16K), not a result."
+    "Upstream prefill with these kernels off was 88-109 tok/s (reported upstream, not measured here). Our llama.cpp 35B prefill is about 230-315 tok/s (locked). So this is a boot test, not a speed candidate.",
+    "One session (LOCKED, post-swap). No correctness check."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes.",
     "No firmware, VBIOS, ESP, BCD or NVRAM writes."
    ],
-   "public_note": "Queued (locked mode, boot test only): the Strata engine with its int8 prompt kernels off, as in the only upstream config that booted. Upstream prefill this way was 88-109 tok/s, so this is not a speed candidate. Credit: see strata-replicate"
+   "public_note": "Measured (locked mode): the Strata engine with its int8 prompt kernels off boots the 35B at 16K context with 3 expert slots. Slots 4 to 10 fail at load. Peak VRAM is 7712 of 7726 MiB. Speed is in strata-nokq-speed. Credit: see strata-replicate",
+   "verdict": "boots (LOCKED): ctx 16384, 3 expert slots, int8 prompt kernels off"
+  },
+  {
+   "id": "strata-nokq-speed",
+   "tier": "inference",
+   "title": "Strata speed with int8 prompt kernels off (35B MoE)",
+   "goal": "Measure prefill, decode and MTP acceptance of the strata-nokq-boot config against llama.cpp on the same 35B file, in the same locked session.",
+   "prereqs": [
+    "strata-nokq-boot"
+   ],
+   "unlocks": [
+    "strata-mtp-prefill"
+   ],
+   "test": "Config: the strata-nokq-boot frozen config (Strata with the int8 prompt kernels off (STRATA_MMQ_KQ=0), 16K context, 3 expert slots, MTP 2, prompt chunk 512). Dev prompts only, temperature 0, penalties 0. Probes: prefill at about 2K and about 15K, and greedy decode, n = 3 medians. Paired llama.cpp arm in the same locked session on the same prompts at the same context (strata-fit config). Fit rule: peak VRAM at most 7726 MiB. Mid-run checks keep every stop and abort except the load-time RAM gate.",
+   "metric": "Prefill and decode tok/s against llama.cpp, MTP draft acceptance, peak VRAM MiB.",
+   "target": "Target: a ratio at or above 1.0x on prefill and on decode would re-form strata-mtp-prefill. No promotion from this node alone.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "prefill, 2K prompt",
+     "value": "69.5 tok/s (Strata) against 162.4 tok/s (llama.cpp): 0.43x",
+     "source": "results-locked/strata-nokq-speed.md"
+    },
+    {
+     "metric": "decode",
+     "value": "29.9 tok/s (Strata) against 23.6 tok/s (llama.cpp): 1.27x",
+     "source": "results-locked/strata-nokq-speed.md"
+    },
+    {
+     "metric": "MTP draft acceptance",
+     "value": "72.4%",
+     "source": "results-locked/strata-nokq-speed.md"
+    },
+    {
+     "metric": "peak VRAM",
+     "value": "7712 of 7726 MiB",
+     "source": "results-locked/strata-nokq-speed.md"
+    },
+    {
+     "metric": "prefill, 15K prompt",
+     "value": "not measured (n = 0): prompt plus reply exceeded 16K on both servers. This is not a server failure",
+     "source": "results-locked/strata-nokq-speed.md"
+    },
+    {
+     "metric": "verdict",
+     "value": "No promotion. llama.cpp stays the default. Strata prefill is below llama.cpp, so strata-mtp-prefill and c6s-confirm are not formed",
+     "source": "results-locked/strata-nokq-speed.md"
+    }
+   ],
+   "confounds": [
+    "One session (LOCKED, post-swap). Small samples. No correctness check.",
+    "The 15K prompt was not measured. A 14K point (n = 3) is queued after the c1-anchor rerun.",
+    "Desktop GPU with display overhead: idle use is about 466 MiB. Probes start only when desktop GPU use is low (15 s median)."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes."
+   ],
+   "public_note": "Measured (locked mode, one session): with its int8 prompt kernels off, the Strata engine reads a 2K prompt at 69.5 tok/s against 162.4 tok/s on llama.cpp (0.43x). It decodes at 29.9 against 23.6 tok/s (1.27x), with 72.4% MTP draft acceptance. Peak VRAM is 7712 of 7726 MiB. The 15K prompt was not measured. No correctness check. No promotion: llama.cpp stays the default. Credit: see strata-replicate",
+   "verdict": "no promotion; llama.cpp stays the default (Strata prefill below llama.cpp)"
   }
  ],
  "next_order": [
   {
    "rank": 1,
-   "id": "base-locked",
-   "reason": "Running. Same-lock-state dev-bench base for later dev-bench results."
+   "id": "thinking-budget",
+   "reason": "In progress."
   },
   {
    "rank": 2,
-   "id": "strata-nokq-boot",
-   "reason": "Boot test: the Strata engine with its int8 prompt kernels off, as upstream did."
+   "id": "c1-anchor",
+   "reason": "Rerun of C1 on the held-out set: all 72 tasks, paired against the C0 rerun."
   },
   {
    "rank": 3,
-   "id": "c1-anchor",
-   "reason": "C1 on the held-out set, paired against c0-rerun. Base for every higher tier."
+   "id": "c2-confirm",
+   "reason": "Held until the C1 rerun pairs cleanly against C0."
   },
   {
    "rank": 4,
-   "id": "c2-confirm",
-   "reason": "C2 against C1 on the held-out set."
-  },
-  {
-   "rank": 5,
-   "id": "thinking-budget",
-   "reason": "Bounded thinking for the planner role, per request."
-  },
-  {
-   "rank": 6,
    "id": "agent-stack",
    "reason": "C3 against C2 on the held-out set."
   },
   {
-   "rank": 7,
+   "rank": 5,
    "id": "spec-ngram",
    "reason": "Short run with no VRAM cost."
   },
   {
-   "rank": 8,
+   "rank": 6,
    "id": "fit-map",
    "reason": "Before parallel-slots: the largest slot count runs only if the fit map shows the KV fits. Also settles the model file check."
   },
   {
-   "rank": 9,
+   "rank": 7,
    "id": "parallel-slots",
    "reason": "Fixed context per slot; the largest slot count only if it fits."
   },
   {
-   "rank": 10,
+   "rank": 8,
    "id": "c4-confirm",
    "reason": "C4 against C3 on the held-out set."
   },
   {
-   "rank": 11,
+   "rank": 9,
    "id": "quant-choice",
    "reason": "Which quant to pick at full offload. It uses the fit-map limits."
   },
   {
-   "rank": 12,
+   "rank": 10,
    "id": "dense-newer",
    "reason": "Which newer small model to pick at full offload. It uses the fit-map limits."
   },
   {
-   "rank": 13,
+   "rank": 11,
    "id": "c5-confirm",
    "reason": "C5 against C4 on the held-out set."
   },
   {
-   "rank": 14,
+   "rank": 12,
    "id": "offload-curve",
    "reason": "Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30."
   },
   {
-   "rank": 15,
+   "rank": 13,
    "id": "moe-offload",
    "reason": "Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
   },
   {
-   "rank": 16,
+   "rank": 14,
    "id": "c6-confirm",
    "reason": "C6 against C5 on the held-out set."
   },
   {
-   "rank": 17,
+   "rank": 15,
    "id": "pause-handoff",
    "reason": "Pause and start path of the prepared package (manual trigger)."
   },
   {
-   "rank": 18,
+   "rank": 16,
    "id": "uptime-slo",
    "reason": "Background observer: start it, then go on. It blocks nothing."
   },
   {
-   "rank": 19,
+   "rank": 17,
    "id": "auto-pause-trigger",
    "reason": "The watcher only logs games today. This makes it pause and start the server."
   },
   {
-   "rank": 20,
+   "rank": 18,
    "id": "thermal-soak",
    "reason": "C1, no request proxy, 4 h. Full offload runs at 203.1 W mean of a 220 W limit. Logging only."
   },
   {
-   "rank": 21,
+   "rank": 19,
    "id": "watchdog-restart",
    "reason": "Crash recovery with state restored. Back-off is expected to miss 30 s from kill 3 on."
   },
   {
-   "rank": 22,
+   "rank": 20,
    "id": "driver-inventory",
    "reason": "Read-only version inventory. Upgrade candidates are research entries only."
   },
   {
-   "rank": 23,
+   "rank": 21,
    "id": "wh-per-pass",
    "reason": "Free with each bench once power logging starts before task 1."
   },
   {
-   "rank": 24,
+   "rank": 22,
    "id": "spec-draft",
    "reason": "Bigger speed-up, but it costs VRAM."
   },
   {
-   "rank": 25,
+   "rank": 23,
    "id": "best-of-n",
    "reason": "Uses spare slots to lift the 0-pass roles."
   },
   {
-   "rank": 26,
+   "rank": 24,
    "id": "agent-workers",
    "reason": "More jobs per hour if the CPU keeps up."
   },
   {
-   "rank": 27,
+   "rank": 25,
    "id": "fp16-workloads",
    "reason": "The only place the unlock pays. Unlocked-only numbers until locked-ab runs."
   },
   {
-   "rank": 28,
+   "rank": 26,
    "id": "bigger-class",
    "reason": "Capstone and C7 confirm against C6 (C6S is not formed)."
   },
   {
-   "rank": 29,
+   "rank": 27,
    "id": "useful-work-per-wh",
    "reason": "Capstone. Runs when its prereqs are measured."
   },
   {
-   "rank": 30,
+   "rank": 28,
    "id": "long-soak",
    "reason": "Last. 24 h on C1, no request proxy."
   }
@@ -2659,9 +2838,11 @@
  "best_config": {
   "node": "full-offload",
   "variant": "base",
+  "mode": "unlocked",
   "passes_per_hour": 14.54,
   "passes": 6,
-  "runs": 36
+  "runs": 36,
+  "note": "Unlocked best config. Changes only after a same-lock-state win (unlocked-reconfirm). Locked results live in lab_best_config_locked."
  },
  "best_config_locked": {
   "node": "sampler",
