@@ -1,6 +1,6 @@
 {
  "name": "RTX 3070 tech tree",
- "version": "1.5.12",
+ "version": "1.5.17",
  "updated": "2026-10-31",
  "scope": "Get the most real work from one RTX 3070 8 GB (LHR included) for local LLMs and agent work.",
  "results_dir": "results/",
@@ -48,7 +48,7 @@
  "measurement_rules": [
   "State n for every number. llama-bench uses -r 5 and 3 reps where possible.",
   "Label warm or cold. All results in v1.3.0 are warm.",
-  "Keep the display on the integrated GPU for A/B runs, or label the confound.",
+  "Keep the display off the RTX card for A/B runs, or label the confound.",
   "Report pass rates with 95% confidence intervals.",
   "A target is a goal, not a result."
  ],
@@ -94,7 +94,7 @@
     "adds": "Starting point: the 8B model with part of its layers in system RAM.",
     "confirm_node": "c0-rerun",
     "config_file": "configs/C0.json",
-    "status": "measured on dev set; held-out anchor queued",
+    "status": "measured on dev set; held-out anchor measured (locked mode, c0-rerun): 10 of 72",
     "heldout_result": null
    },
    {
@@ -103,16 +103,16 @@
     "adds": "All layers on the card, flash attention, 8-bit KV cache, context sized to the jobs.",
     "confirm_node": "c1-anchor",
     "config_file": "configs/C1.json",
-    "status": "measured on dev set; held-out anchor queued",
+    "status": "measured on dev set; held-out anchor measured (locked mode): 18 of 72, beats C0 (McNemar p 0.019); confound: memcap 12G vs C0 uncapped",
     "heldout_result": null
    },
    {
     "tier": "C2",
     "name": "Agent loop and sampling fixes",
-    "adds": "C1 plus the loop-guard result and the winning sampler arm.",
+    "adds": "C1 plus the sampler-b arm. The loop guard is not applied, because its result was negative.",
     "confirm_node": "c2-confirm",
     "config_file": null,
-    "status": "TBD",
+    "status": "not confirmed: does not beat C1",
     "heldout_result": null
    },
    {
@@ -121,13 +121,13 @@
     "adds": "C2 plus bounded thinking for the planner role, if it wins.",
     "confirm_node": "agent-stack",
     "config_file": null,
-    "status": "TBD",
+    "status": "not formed",
     "heldout_result": null
    },
    {
     "tier": "C4",
     "name": "Decode speed and concurrency",
-    "adds": "C3 plus speculative decoding and parallel slots, if they win.",
+    "adds": "C1 plus speculative decoding and parallel slots, if they win.",
     "confirm_node": "c4-confirm",
     "config_file": null,
     "status": "TBD",
@@ -259,7 +259,7 @@
     }
    ],
    "confounds": [
-    "The desktop display moved from the RTX card to the integrated GPU between the locked and unlocked sessions. This frees VRAM and idles the card."
+    "The desktop display moved off the RTX card between the locked and unlocked sessions. This frees VRAM and idles the card."
    ],
    "safety_notes": [
     "Read-only queries only. Do not change the power limit or clocks."
@@ -465,7 +465,7 @@
     "unlock-fp32acc"
    ],
    "unlocks": [],
-   "test": "A locked cold boot with the display on the integrated GPU. Run the same llama-bench, GEMM, fa-off and agent bench as the unlocked arm.",
+   "test": "A locked cold boot with the display off the RTX card. Run the same llama-bench, GEMM, fa-off and agent bench as the unlocked arm.",
    "metric": "Delta per metric, locked vs unlocked, same display state.",
    "target": "Target: every unlock claim has a same-display locked baseline.",
    "status": "needs_owner",
@@ -705,7 +705,7 @@
    "confounds": [
     "The gain is in throughput (passes per hour and tok/s). The pass-rate gain is not proven: 6 of 36 and 3 of 36 have overlapping 95% intervals.",
     "Two earlier attempts are discarded. A 14-run partial run stopped for a pause. A full 36-run run had the desktop display on the 3070. Its figures are for reference only.",
-    "Idle VRAM residual: 321 MiB on the card with no process listed, the display on the integrated GPU and no lab process. The baseline idle value was 0 MiB.",
+    "Idle VRAM residual: 321 MiB on the card with no process listed, the display off the RTX card and no lab process. The baseline idle value was 0 MiB.",
     "The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB). The baseline ran at the default cap.",
     "Context is 16384. The discarded partial run used 8192.",
     "The prior values are from before this node. They are not its result."
@@ -734,17 +734,68 @@
    "test": "Qwen3-8B at Q4_K_M, Q5_K_M, Q6_K and Q8_0, Qwen3.5-9B Q4_K_M, a 4B-class and a 14B-class Q4_K_M, all layers on the GPU, FA on. For each KV pair (f16, q8_0, q4_0), find the largest ctx that loads and serves a 512-token prompt. Record peak VRAM and llama-bench pp512/tg128 (n=3).",
    "metric": "Max ctx, VRAM MiB, pp512 and tg128 tok/s.",
    "target": "Target: a table of every model, quant and KV pair with its max ctx, peak VRAM and speed.",
-   "status": "queued",
-   "result": null,
+   "status": "measured",
+   "result": [
+    {
+     "metric": "settings",
+     "value": "llama.cpp build 11734, -ngl 99, FA on. Max ctx = largest ctx (1024 steps) that loads and serves a 512-token prompt with VRAM peak at most total - 128 MiB. pp512 / tg128 from llama-bench, n=3. Display off the 3070. Warm. One model at a time. No agent bench",
+     "source": "results/fit-map.md"
+    },
+    {
+     "metric": "Qwen3-8B Q4_K_M",
+     "value": "max ctx 65536 for KV f16, q8_0 and q4_0. tg128 68.25 / 66.14 / 65.92 tok/s, pp512 2763.44 / 2705.79 / 2732.07 tok/s (f16 / q8_0 / q4_0)",
+     "source": "results/fit-map.md"
+    },
+    {
+     "metric": "Qwen3-8B Q5_K_M",
+     "value": "max ctx 40960 for all KV types. tg128 60.83 / 60.34 / 59.94 tok/s, pp512 2743.26 / 2720.79 / 2658.11 tok/s (f16 / q8_0 / q4_0)",
+     "source": "results/fit-map.md"
+    },
+    {
+     "metric": "Qwen3-8B Q6_K",
+     "value": "max ctx 40960 for all KV types. tg128 54.84 / 53.36 / 53.19 tok/s, pp512 2627.66 / 2540.18 / 2547.54 tok/s (f16 / q8_0 / q4_0)",
+     "source": "results/fit-map.md"
+    },
+    {
+     "metric": "Qwen3.5-9B Q4_K_M",
+     "value": "max ctx 262144 for all KV types. tg128 58.86 / 58.57 / 59.56 tok/s, pp512 2538.94 / 2535.54 / 2583.61 tok/s (f16 / q8_0 / q4_0)",
+     "source": "results/fit-map.md"
+    },
+    {
+     "metric": "Qwen3-4B Q4_K_M",
+     "value": "max ctx 40960 for all KV types. tg128 106.37 / 102.09 / 102.0 tok/s, pp512 4430.2 / 4193.1 / 4273.65 tok/s (f16 / q8_0 / q4_0)",
+     "source": "results/fit-map.md"
+    },
+    {
+     "metric": "KV cache type",
+     "value": "f16, q8_0 and q4_0 change speed by a small amount only, for each model in the fit table",
+     "source": "results/fit-map.md"
+    },
+    {
+     "metric": "excluded (confound): Qwen3-8B Q8_0 and Qwen3-14B Q4_K_M",
+     "value": "Loads and serves with VRAM spill (not verified), not a clean fit. Speed collapses at full offload: 8B Q8_0 tg128 14.34 / 12.38 / 12.2 tok/s; 14B Q4_K_M tg128 5.7 / 5.79 / 5.83 tok/s (f16 / q8_0 / q4_0). Not in the fit table and not used for best-config picks",
+     "source": "results/fit-map.md"
+    },
+    {
+     "metric": "8B model file check",
+     "value": "Header-only diff, tensor data identical: 2 bytes differ, in the header; 0 of 399 tensors differ. On-disk sha256 9180c8dd0cf75900c078c76809cef17177f8f755617f4799dfaa57e3e8d9fc01; repo sha256 d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785. pp512 2698.57 against 2691.03 tok/s and tg128 65.34 against 65.39 tok/s (on-disk against repo, n=3), within the spread. The earlier 8B baseline stands",
+     "source": "results/fit-map.md"
+    }
+   ],
    "confounds": [
     "The display must be off the card, or the free VRAM is lower. Label it.",
     "Label: fit-map speeds (pp512, tg128) are measured at llama-bench's short context (512-token prompt, 128 generated tokens), not at the largest context that fits. Speed at the max context is lower.",
-    "Label: the on-disk lab Qwen3-8B Q4_K_M has the repo file's size (5027783488 bytes) but not its sha256 (on-disk begins 9180c8dd, Qwen/Qwen3-8B-GGUF begins d98cdcbd). Check pending: fit-map benches the on-disk copy and the repo copy under identical settings; if they differ, the chain holds after fit-map for review before earlier 8B results are relied on.",
-    "Method: report prefill and decode from the server per-request timings (server.log print_timing), not tokens over request wall time. The tokbench figures (prefill 442 tok/s at 2k and 1844 at 6k; decode 54.2 at 2k) folded decode or time to first token into the rate. Server per-request timings at full offload: about 2k context, n=47: prefill median 2889 tok/s, decode median 63.90 tok/s (p10 to p90 63.71 to 64.15); about 6k context, n=20: prefill 2749, decode 57.66; agent requests: decode 61.53 (lab-reported, source: results/prefill-correction.md)."
+    "Method: report prefill and decode from the server per-request timings (server.log print_timing), not tokens over request wall time. The tokbench figures (prefill 442 tok/s at 2k and 1844 at 6k; decode 54.2 at 2k) folded decode or time to first token into the rate. Server per-request timings at full offload: about 2k context, n=47: prefill median 2889 tok/s, decode median 63.90 tok/s (p10 to p90 63.71 to 64.15); about 6k context, n=20: prefill 2749, decode 57.66; agent requests: decode 61.53 (lab-reported, source: results/prefill-correction.md).",
+    "Confound: the max-ctx figures for Qwen3-8B Q8_0 and Qwen3-14B Q4_K_M are 'loads and serves with VRAM spill (unverified), not a clean fit'. They are not in the fit table and are not used for best-config picks.",
+    "No agent bench: the fit map gives fit and speed only, not pass rate.",
+    "Disk floor: the node ran one model at a time (fetch, measure, delete, then the next) to stay above the 20 GiB free-space floor. Removal of the 14B model file after its run was the planned step. The MTP model file is kept.",
+    "Label: header-only diff, tensor data identical. The on-disk Qwen3-8B Q4_K_M (sha256 9180c8dd0cf75900c078c76809cef17177f8f755617f4799dfaa57e3e8d9fc01) differs from the repo copy (sha256 d98cdcbd03e17ce47681435b5150e34c1417f50b5c0019dd560e4882c5745785) by 2 header bytes only; 0 of 399 tensors differ and speeds match within the spread. The earlier 8B baseline stands."
    ],
    "safety_notes": [
     "No power or clock changes."
-   ]
+   ],
+   "public_note": "Measured (full offload, FA on, n=3, display off the 3070, no agent bench). Speeds are at a 512-token prompt and 128 generated tokens, not at max ctx. Qwen3-8B Q4_K_M fits 65536 ctx at 68.25 tok/s decode and 2763.44 tok/s prefill (KV f16). Qwen3-8B Q5_K_M and Q6_K fit 40960 ctx at 60.83 and 54.84 tok/s decode. Qwen3.5-9B Q4_K_M fits 262144 ctx at 58.86 tok/s decode. Qwen3-4B Q4_K_M decodes at 106.37 tok/s at 40960 ctx. The KV type (f16, q8_0, q4_0) changes speed by a small amount only. Confound: Qwen3-8B Q8_0 (14.34 tok/s decode) and Qwen3-14B Q4_K_M (5.7 tok/s decode) load and serve with VRAM spill (not verified). This is not a clean fit, so they are not in the fit table. The on-disk 8B file has a header-only diff from the repo copy, and its tensor data is identical, so the earlier 8B baseline stands. The best configs do not change",
+   "verdict": "measured: fit table done; 8B Q8_0 and 14B Q4_K_M excluded (VRAM spill, unverified); no change to the best configs"
   },
   {
    "id": "offload-curve",
@@ -760,14 +811,49 @@
    "test": "llama-bench pp512/tg128 for Qwen3-8B Q4_K_M at -ngl 0, 8, 16, 24, 30 and all layers, ctx 4096, n=3. Then a 14B-class model up to the most layers that fit. Log VRAM and board power.",
    "metric": "pp512 and tg128 tok/s per -ngl, VRAM MiB, board W.",
    "target": "Target: a speed curve per model from -ngl 0 to all layers.",
-   "status": "queued",
-   "result": null,
+   "status": "measured",
+   "result": [
+    {
+     "metric": "settings",
+     "value": "llama-bench, KV q8_0, FA on, n=3 (mean +- sd). ctx 4096 = depth 3584 + pp512; tg128 after 3584 tokens. Display off the 3070. Warm, except Qwen3-8B at -ngl 0 (cold)",
+     "source": "results/offload-curve.md"
+    },
+    {
+     "metric": "Qwen3-8B Q4_K_M, all layers on the GPU",
+     "value": "pp512 @4096 2327.44 +- 40.96 tok/s, tg128 @4096 59.9 +- 1.74 tok/s, VRAM peak 5713 MiB, board 140.7 W mean / 201.6 W peak",
+     "source": "results/offload-curve.md"
+    },
+    {
+     "metric": "Qwen3-8B Q4_K_M, -ngl 0 / 8 / 16 / 24 / 30",
+     "value": "tg128 @4096: 4.06 / 4.66 / 5.3 / 10.02 / 16.09 tok/s; pp512 @4096: 375.95 / 420.32 / 547.4 / 1001.34 / 1296.79 tok/s",
+     "source": "results/offload-curve.md"
+    },
+    {
+     "metric": "Qwen3-14B Q4_K_M, -ngl 32 (best pp512 @4096)",
+     "value": "pp512 @4096 490.33 +- 15.71 tok/s, tg128 @4096 9.36 +- 0.12 tok/s, VRAM peak 7674 MiB",
+     "source": "results/offload-curve.md"
+    },
+    {
+     "metric": "Qwen3-14B Q4_K_M, -ngl 0 / 8 / 16 / 24 / 30",
+     "value": "tg128 @4096: 2.68 / 2.82 / 3.96 / 5.05 / 8.12 tok/s; pp512 @4096: 219.28 / 241.49 / 291.02 / 362.13 / 442.04 tok/s",
+     "source": "results/offload-curve.md"
+    },
+    {
+     "metric": "Qwen3-14B Q4_K_M, -ngl 36 and all layers (collapse)",
+     "value": "-ngl 36: pp512 @4096 46.65 tok/s, tg128 @4096 10.63 tok/s, VRAM peak 7842 MiB. All layers: pp512 @4096 61.68 tok/s, tg128 @4096 2.06 tok/s, VRAM peak 7821 MiB",
+     "source": "results/offload-curve.md"
+    }
+   ],
    "confounds": [
-    "System RAM speed and CPU threads set the slow end of the curve."
+    "System RAM speed and CPU threads set the slow end of the curve.",
+    "Qwen3-14B Q4_K_M collapses at -ngl 36 (prefill) and at all layers (prefill and decode). The likely cause is VRAM spill to system memory. This cause is not verified.",
+    "At -ngl 36, the 14B tg128 @4096 (10.63 tok/s) is higher than at -ngl 32 (9.36 tok/s), but pp512 @4096 falls to 46.65 tok/s. -ngl 32 is the best balanced point at ctx 4096."
    ],
    "safety_notes": [
     "No power or clock changes."
-   ]
+   ],
+   "public_note": "Measured (llama-bench, KV q8_0, FA on, ctx 4096, n=3, display off the 3070). Qwen3-8B Q4_K_M with all layers on the GPU: 2327.44 tok/s prefill, 59.9 tok/s decode, 5713 MiB peak VRAM. With 0 layers on the GPU, decode is 4.06 tok/s. Qwen3-14B Q4_K_M is best at 32 layers: 490.33 tok/s prefill, 9.36 tok/s decode, 7674 MiB. At 36 layers, prefill falls to 46.65 tok/s. With all layers, prefill is 61.68 tok/s and decode is 2.06 tok/s. The likely cause is VRAM spill (not verified)",
+   "verdict": "measured: speed curve per model; 8B is fastest at full offload; 14B Q4_K_M is best at -ngl 32 and collapses above that (likely VRAM spill, unverified)"
   },
   {
    "id": "quant-choice",
@@ -776,7 +862,8 @@
    "goal": "Find the weight quant with the best passes per hour that fits at full offload.",
    "prereqs": [
     "full-offload",
-    "fit-map"
+    "fit-map",
+    "c4-confirm"
    ],
    "unlocks": [
     "c5-confirm"
@@ -787,7 +874,9 @@
    "status": "queued",
    "result": null,
    "confounds": [
-    "A larger quant cuts the room for KV cache and parallel slots."
+    "A larger quant cuts the room for KV cache and parallel slots.",
+    "Evidence from fit-map: Q4_K_M fits 65536 ctx and decodes fastest of the 8B quants; Q5_K_M and Q6_K fit 40960 ctx; Q8_0 does not fit cleanly. Not decided: the pick needs the agent bench.",
+    "Held until c4-confirm is measured, so that the quant pick runs on the confirmed tier. dense-newer and later nodes may run first."
    ],
    "safety_notes": []
   },
@@ -806,10 +895,45 @@
    "test": "Speculative decoding with no draft model. Token bench and 36-run agent bench.",
    "metric": "Agent decode tok/s, draft acceptance rate, pass rate, Wh per pass.",
    "target": "Target: agent decode at least 1.3x with the same pass rate.",
-   "status": "queued",
-   "result": null,
-   "confounds": [],
-   "safety_notes": []
+   "status": "measured",
+   "result": [
+    {
+     "metric": "36-run core bench (locked mode, n-gram simple speculative decoding)",
+     "value": "5 of 36 passes (95% CI 6.1-28.7%), 7.94 passes per hour, against 6 of 36 and 14.54 passes per hour on the base",
+     "source": "results/spec-ngram.md"
+    },
+    {
+     "metric": "agent decode",
+     "value": "36.4 tok/s against 57.5 tok/s on the base (0.63x; target 1.3x)",
+     "source": "results/spec-ngram.md"
+    },
+    {
+     "metric": "draft acceptance",
+     "value": "0.36",
+     "source": "results/spec-ngram.md"
+    },
+    {
+     "metric": "truncated tool calls",
+     "value": "89, against 9 on the base",
+     "source": "results/spec-ngram.md"
+    },
+    {
+     "metric": "energy",
+     "value": "1.38 board Wh per task",
+     "source": "results/spec-ngram.md"
+    },
+    {
+     "metric": "verdict",
+     "value": "Not a gain. Measured negative",
+     "source": "results/spec-ngram.md"
+    }
+   ],
+   "confounds": [
+    "The base row is the unlocked full-offload bench, not a locked base. This node ran in locked mode, so the comparison is indicative only."
+   ],
+   "safety_notes": [],
+   "public_note": "Measured negative (locked mode): 5 of 36 passes (95% CI 6.1% to 28.7%) and 7.94 passes per hour, against 6 of 36 and 14.54 on the base. Decode is 36.4 against 57.5 tok/s (0.63x; the target was 1.3x). Draft acceptance is 0.36, and truncated tool calls went from 9 to 89. Confound: the base is the unlocked full-offload bench",
+   "verdict": "negative: decode 0.63x of the base (target 1.3x), 5 of 36 against 6 of 36 passes"
   },
   {
    "id": "spec-draft",
@@ -1216,12 +1340,17 @@
    "test": "Thinking on for one role only, with a bounded budget, sent per request. Every other role stays thinking-off. 36-run core agent bench on the best config.",
    "metric": "Passes per hour, pass rate (overall and pm), board Wh per task, truncated tool calls and length stops per role (baseline 9 of 363 calls in the full-offload run: write 5, edit 4).",
    "target": "Keep only if passes per hour beat the base config. Report the pm pass rate and pm truncations separately.",
-   "status": "in_progress",
+   "status": "measured",
    "result": [
     {
      "metric": "baseline output-limit truncations, full-offload run (not this node's result)",
      "value": "9 of 363 tool calls (write 5, edit 4). The earlier count of 14 included 5 bash errors by a keyword match.",
      "source": "results/tool-call-format-errors.jsonl"
+    },
+    {
+     "metric": "lab chain result (36-run core bench)",
+     "value": "4 of 36 passes, 4.44 passes per hour, median output 35.76 tok/s, 2.11 board Wh per task, 1.111 loop events per run, edit-error rate per edit call 0.412 (35 of 85), bash non-zero 68 of 109 (secondary), output-limit truncations 17, tool error share 0.385, failures {'gofmt': 10, 'review': 6, 'build': 4, 'missing_output': 4, 'tests': 3, 'rubric': 2, 'tampered': 2, 'vet': 1}. Variant thinkpm-on-base. Truncations per role: ci 6 of 66, debugger 0 of 72, implementer 2 of 81, pm 0 of 17, reviewer 0 of 28, testwriter 9 of 48.",
+     "source": "results/thinking-budget.md"
     }
    ],
    "confounds": [
@@ -1347,12 +1476,21 @@
    "test": "Tier C3 on the 36-run bench and the held-out set against C2. Apply the tier pass criteria.",
    "metric": "Pass rate on the tuned set and on the held-out set, reported apart. Passes per hour, Wh per pass, peak VRAM MiB.",
    "target": "Target: meets the tier pass criteria against C2 on the held-out set.",
-   "status": "queued",
-   "result": null,
-   "confounds": [
-    "Tuning on 12 tasks can overfit them."
+   "status": "measured",
+   "result": [
+    {
+     "metric": "verdict",
+     "value": "Not formed: the only fix that helped, sampler-b, does not beat C1 as C2 (c2-confirm), and planner-only thinking is not a gain (thinking-budget). There is nothing to combine, so C3 is not formed. Not run",
+     "source": "results/c2-confirm.md"
+    }
    ],
-   "safety_notes": []
+   "confounds": [
+    "Tuning on 12 tasks can overfit them.",
+    "Retired as scoped (ruling): C3 is not formed. Examine it again only if a tier above C1 is confirmed or a new agent fix is a gain."
+   ],
+   "safety_notes": [],
+   "public_note": "Not formed: the only fix that helped, sampler-b, does not beat C1 as C2 (c2-confirm), and planner-only thinking is not a gain (thinking-budget). There is nothing to combine, so C3 is not formed. Not run",
+   "verdict": "not formed (retired as scoped: C2 does not beat C1 and thinking-budget is not a gain)"
   },
   {
    "id": "parallel-slots",
@@ -1371,7 +1509,7 @@
    "test": "Serve more than one request at once, with a fixed context per slot. A slot count runs only if the fit map shows its KV cache fits; otherwise it is recorded as \"does not fit\". Token bench at each setting. Log VRAM, power and temperature.",
    "metric": "Aggregate tok/s, per-request tok/s, aggregate tok/s per board W.",
    "target": "Target: aggregate tok/s per board W at least 1.5x of 1 slot, at the largest slot count that fits.",
-   "status": "queued",
+   "status": "in_progress",
    "result": null,
    "confounds": [
     "Half-full batches can be the worst case (public reports).",
@@ -1391,7 +1529,7 @@
    ],
    "unlocks": [],
    "test": "Agent bench with 2 workers against a 2-slot server.",
-   "metric": "Passes per hour, pass rate, CPU load. Pass/fail uses the compare_tiers rule, which is canonical; the plan text must match it. passes/h in wall mode (compare_wall.py).",
+   "metric": "Passes per hour, pass rate, CPU load. Pass/fail uses the tier pass rule. passes/h in wall mode (compare_wall.py).",
    "target": "Target: passes per hour at least 1.5x vs 1 worker.",
    "status": "queued",
    "result": null,
@@ -1850,24 +1988,50 @@
    "test": "Run C1 on the full held-out set with the same harness, task order and power logging as c0-rerun. Launch with temperature 0.2, top-k 20, top-p 0.95, and pass --min-p 0.05 and --presence-penalty 0 explicitly; max output 4096 tokens for every role. Log the full launch line in meta.json. Post-swap: the display stays off the 3070 for the whole run. Rerun: all 72 tasks with a 12G memory cap on test processes from the start. A capped kill counts as a fail. Also report a kill-excluded sensitivity table.",
    "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per task and per pass, peak VRAM MiB, runs completed.",
    "target": "Target: all held-out runs completed (anchor), and meets the tier pass criteria against C0.",
-   "status": "queued",
+   "status": "measured",
    "result": [
     {
-     "metric": "status",
-     "value": "Needs rerun: result invalid: comparison never ran; rerun queued (72 of 72 tasks, memory cap 12G on test processes for all tiers, a capped kill counts as a fail, tagged against C0 uncapped, plus a kill-excluded sensitivity table). The first run did not complete all tasks; its numbers are withheld",
+     "metric": "held-out anchor (C1, LOCKED, rerun)",
+     "value": "18 of 72 held-out passes (Wilson 95% CI 16.4-36.1%), 72 of 72 tasks completed, 12G per-task test memory cap. Model Qwen3-8B Q4_K_M",
+     "source": "results/c1-anchor.md"
+    },
+    {
+     "metric": "throughput",
+     "value": "14.74 passes per hour, median decode 36.5 tok/s",
+     "source": "results/c1-anchor.md"
+    },
+    {
+     "metric": "peak VRAM",
+     "value": "6504 MiB",
+     "source": "results/c1-anchor.md"
+    },
+    {
+     "metric": "verdict against c0-rerun (10 of 72)",
+     "value": "BEATS: paired McNemar one-sided p 0.019",
+     "source": "results/c1-anchor.md"
+    },
+    {
+     "metric": "sensitivity table (capped kills removed)",
+     "value": "BEATS: the 5 capped deps.test kills (about 11.9 GiB each, scoped to the test memory cgroup, 0 system out-of-memory kills) are counted as fails in the main table. With them removed from both arms, the verdict is also BEATS and agrees with the main verdict",
+     "source": "results/c1-anchor.md"
+    },
+    {
+     "metric": "first run",
+     "value": "Invalid, not counted: it covered 30 of 72 held-out tasks and its comparison against c0-rerun never ran. Its numbers are withheld",
      "source": "results/c1-anchor.md",
      "note": "invalid run, not a result"
     }
    ],
    "confounds": [
     "C1 is free and public. It is the base for every higher tier.",
-    "The rerun caps test processes at 12G; C0 ran uncapped (tag: memcap 12G vs C0 uncapped). A kill-excluded sensitivity table is reported next to the main paired table.",
-    "C0 had no OOM, but there is no per-test peak-RSS data for C0, so we can't rule out that a cap would have changed C0's result. Per-test peak RSS is logged for every run from the C1 rerun on."
+    "Confound (memcap 12G vs C0 uncapped): C1 ran with a 12G memory cap on test processes. C0 (c0-rerun) ran with no cap. The kill-excluded sensitivity table agrees with the main verdict.",
+    "C0 had no out-of-memory kill, but there is no per-test peak-RSS data for C0, so a cap could have changed the C0 result. Per-test peak RSS is logged for every run from the C1 rerun on."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes."
    ],
-   "public_note": "Needs rerun: result invalid: comparison never ran; rerun queued (72 of 72 tasks, memory cap 12G on test processes for all tiers, a capped kill counts as a fail, tagged against C0 uncapped, plus a kill-excluded sensitivity table). Comparator: c0-rerun (10 of 72, locked mode, post-swap)"
+   "public_note": "Measured (locked mode, rerun of all 72 tasks with a 12G memory cap on test processes): 18 of 72 held-out passes, 14.74 passes per hour, decode 36.5 tok/s, peak VRAM 6504 MiB. C1 beats C0 (c0-rerun, 10 of 72), McNemar p 0.019. The sensitivity table without the 5 capped kills also beats. Confound: C1 ran under the 12G memory cap and C0 ran with no cap. The first run is invalid and is not counted",
+   "verdict": "BEATS c0-rerun (McNemar p 0.019); sensitivity table agrees. Confound: memcap 12G vs C0 uncapped"
   },
   {
    "id": "c2-confirm",
@@ -1885,15 +2049,43 @@
    "test": "Run tier C2 on the frozen held-out set with the same harness, task order and power logging as the tier below. Apply the tier pass criteria.",
    "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per pass, peak VRAM MiB.",
    "target": "Target: meets the tier pass criteria against the tier below.",
-   "status": "queued",
-   "result": null,
+   "status": "measured",
+   "result": [
+    {
+     "metric": "held-out confirm (C2, locked mode)",
+     "value": "21 of 72 held-out passes, all 72 tasks, 12G per-task test memory cap, kills scored as fails",
+     "source": "results/c2-confirm.md"
+    },
+    {
+     "metric": "throughput",
+     "value": "20.30 passes per hour, decode 33.9 tok/s",
+     "source": "results/c2-confirm.md"
+    },
+    {
+     "metric": "peak VRAM",
+     "value": "6853 MiB, no out-of-memory errors",
+     "source": "results/c2-confirm.md"
+    },
+    {
+     "metric": "verdict against c1-anchor (18 of 72)",
+     "value": "Does not beat C1: paired McNemar one-sided p 0.31, paired difference +4.2 pp (95% CI -7.0 to +15.4 pp). Passes per hour is 1.38x, but decode is 0.93x, so the no-regression checks do not pass",
+     "source": "results/c2-confirm.md"
+    },
+    {
+     "metric": "sensitivity table (kills removed)",
+     "value": "Agrees with the main verdict: does not beat C1",
+     "source": "results/c2-confirm.md"
+    }
+   ],
    "confounds": [
-    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates."
+    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates.",
+    "C2 is C1 plus sampler-b only, with no loop guard (the loop-guard result was negative). A proxy forces sampler-b on every request, and the server launch line still shows the C1 sampler. A rerun sets the sampler in the C2 config, so that the launch line agrees."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes. Stop on any screen blanking."
    ],
-   "public_note": "Held until the c1-anchor rerun pairs cleanly against c0-rerun"
+   "public_note": "Measured negative (locked mode, 72 held-out tasks, 12G memory cap on test processes): 21 of 72 passes, 20.30 passes per hour, decode 33.9 tok/s, peak VRAM 6853 MiB. C2 does not beat C1 (18 of 72): McNemar one-sided p 0.31, paired difference +4.2 pp (95% CI -7.0 to +15.4 pp). Passes per hour is 1.38x, but decode is 0.93x, so the no-regression checks do not pass. The sensitivity table without the kills agrees. C1 stays the top confirmed tier",
+   "verdict": "negative: does not beat c1-anchor (McNemar one-sided p 0.31; decode 0.93x, so the no-regression checks do not pass)"
   },
   {
    "id": "c4-confirm",
@@ -1901,12 +2093,13 @@
    "title": "C4 confirm",
    "goal": "Confirm tier C4 (decode speed-up and concurrency) against the tier below on the held-out set.",
    "prereqs": [
-    "agent-stack",
+    "c1-anchor",
     "spec-ngram",
     "parallel-slots"
    ],
    "unlocks": [
-    "c5-confirm"
+    "c5-confirm",
+    "quant-choice"
    ],
    "test": "Run tier C4 on the frozen held-out set with the same harness, task order and power logging as the tier below. Apply the tier pass criteria.",
    "metric": "Held-out pass rate with 95% CI, passes per hour, median agent decode tok/s, board Wh per pass, peak VRAM MiB.",
@@ -1914,7 +2107,10 @@
    "status": "queued",
    "result": null,
    "confounds": [
-    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates."
+    "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates.",
+    "C2 is not confirmed and C3 is not formed, so C4 inherits C1 and is compared against C1 until a tier above C1 is confirmed.",
+    "Comparator: the locked C1 anchor rerun (post-swap), with a 12G per-task test memory cap on both arms.",
+    "If parallel-slots also loses, C4 is not formed and stays equal to C1."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes. Stop on any screen blanking."
@@ -2005,7 +2201,7 @@
     "strata-replicate",
     "moe35-longctx"
    ],
-   "test": "Mostly read-only. 1) Record free disk on the model disk, WSL2 MemTotal and MemAvailable with the lab server stopped, swap, and the disk type of the model disk. 2) Build or fetch the pinned Strata release for sm_86 inside WSL2 (CPU-only compile, no GPU job at the same time). Record the engine log line for KV streaming and pinned memory under WSL2. 3) Fetch Qwen3.6-35B-A3B UD-Q4_K_XL from unsloth/Qwen3.6-35B-A3B-MTP-GGUF into the WSL2 ext4 disk (not /mnt/c), check the LFS sha256, and sum its tensor bytes by class with gguf_split.py. 4) Compute the fit: model RAM need plus engine and OS against the WSL2 cap minus 2 GiB, and download size against free disk minus a floor of 20 GiB. Do the same arithmetic, with no download, for the 125B Flash-Next packs.",
+   "test": "Mostly read-only. 1) Record free disk on the model disk, WSL2 MemTotal and MemAvailable with the lab server stopped, swap, and the disk type of the model disk. 2) Build or fetch the pinned Strata release for sm_86 inside WSL2 (CPU-only compile, no GPU job at the same time). Record the engine log line for KV streaming and pinned memory under WSL2. 3) Fetch Qwen3.6-35B-A3B UD-Q4_K_XL from unsloth/Qwen3.6-35B-A3B-MTP-GGUF into the WSL2 ext4 disk (not a mounted Windows drive), check the LFS sha256, and sum its tensor bytes by class with gguf_split.py. 4) Compute the fit: model RAM need plus engine and OS against the WSL2 cap minus 2 GiB, and download size against free disk minus a floor of 20 GiB. Do the same arithmetic, with no download, for the 125B Flash-Next packs.",
    "metric": "Free disk GiB, WSL2 MemTotal and MemAvailable, swap, model file sha256 match, tensor GiB by class, fit verdict per model (fits, tight, does not fit) with the arithmetic.",
    "target": "Target: a fit verdict with numbers for the 35B MoE at 16K to 128K context, confirmed on the GPU (boot and a long fill), and the paper verdict for the 125B packs. strata-replicate runs only on a model with a fits or tight verdict.",
    "status": "measured",
@@ -2084,7 +2280,7 @@
    ],
    "test": "The 35B MoE file on the Strata engine against plain llama.cpp with experts in system RAM. First a fixed boot search on dev prompts (expert slots from 10 down, at 16K then 8K); the first config that boots is frozen and llama.cpp is paired at the same context. Then speed probes, temperature-0 token agreement and one paired held-out run judged by the tier rule. If nothing boots at 8K or more, the result is a measured negative.",
    "metric": "Boot search log (ctx, slots, needed and free MiB per try), frozen config; Prefill and decode tok/s per point (median and range), agent decode tok/s, MTP acceptance, cold load s, temperature-0 agreement (%, first divergence), held-out paired pass table, McNemar p and passes/h per arm, peak VRAM MiB, peak RAM and swap, disk bytes written.",
-   "target": "Target: a paired engine comparison with every number labeled. Strata counts as a win only if it passes the compare_tiers rule against Arm A on the held-out set (one of McNemar p < 0.05, passes/h >= 1.10x, decode >= 1.10x, with no regression: paired CI low > -5 pp), temperature-0 agreement is reported, MTP on matches MTP off, and the fit rule holds (VRAM <= 8192 MiB, RAM < WSL2 cap - 2 GiB). If no Strata config boots at 8K or more: measured negative; strata-mtp-prefill and c6s-confirm are not formed.",
+   "target": "Target: a paired engine comparison with every number labeled. Strata counts as a win only if it passes the tier pass rule against Arm A on the held-out set (one of McNemar p < 0.05, passes/h >= 1.10x, decode >= 1.10x, with no regression: paired CI low > -5 pp), temperature-0 agreement is reported, MTP on matches MTP off, and the fit rule holds (VRAM <= 8192 MiB, RAM < WSL2 cap - 2 GiB). If no Strata config boots at 8K or more: measured negative; strata-mtp-prefill and c6s-confirm are not formed.",
    "status": "measured",
    "result": [
     {
@@ -2157,7 +2353,7 @@
     "No reboot, shutdown or sleep. Never run wsl --shutdown.",
     "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
     "Bind the server to the loopback address only. No outside traffic.",
-    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Log disk writes for the run (bytes written to the model disk, from the kernel disk counters before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
     "Stop on any screen blanking under load and log power and temperature.",
     "Restore the C1 config after the run and verify it with one health request and one 6000-token request; halt the chain if the restore fails."
    ],
@@ -2188,8 +2384,8 @@
    "result": [
     {
      "metric": "verdict",
-     "value": "Not formed: Strata prefill is below llama.cpp (0.43x at a 2K prompt, strata-nokq-speed). Not run",
-     "source": "results-locked/strata-nokq-speed.md"
+     "value": "Not formed: Strata prefill is 0.36x to 0.43x of llama.cpp (strata-nokq-speed, strata-nokq-14k), and at 14K Strata goes over the VRAM line. No prefill gain to build on and no C6S config that fits. Not run",
+     "source": "results/strata-nokq-14k.md"
     }
    ],
    "confounds": [
@@ -2197,18 +2393,18 @@
     "Strata docs (Qwen3.6 page): prompt chunk 512 gives text identical to the base engine; other chunk sizes change rounding.",
     "RTX 2080, same 35B file: chunk 1024 cut the expert slots that fit and decode fell, so it was reverted; chunk 2048 with 4 slots did not fit (reported upstream, not measured here)",
     "MTP drafts run only when one request is active, unless batch drafts are turned on (Strata docs).",
-    "Not formed: strata-nokq-boot boots, but strata-nokq-speed measured Strata prefill at 0.43x of llama.cpp. It reopens only on a new Strata result with prefill at or above llama.cpp."
+    "Not formed (ruling): Strata prefill is 0.36x to 0.43x of llama.cpp, and at 14K peak VRAM is over the 7726 MiB line. The 1.27x decode at 2K is not sufficient alone. Examine this again only if a new pinned Strata release changes VRAM use or prefill."
    ],
    "safety_notes": [
     "No power-limit, clock or undervolt changes.",
     "No reboot, shutdown or sleep. Never run wsl --shutdown.",
     "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
     "Bind the server to the loopback address only. No outside traffic.",
-    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Log disk writes for the run (bytes written to the model disk, from the kernel disk counters before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
     "Stop on any screen blanking under load and log power and temperature."
    ],
-   "public_note": "Not formed: Strata prefill is below llama.cpp (0.43x at a 2K prompt, strata-nokq-speed). Not run",
-   "verdict": "not formed (Strata prefill below llama.cpp)"
+   "public_note": "Not formed: Strata prefill is 0.36x to 0.43x of llama.cpp (strata-nokq-speed, strata-nokq-14k), and at 14K Strata goes over the VRAM line. No prefill gain to build on and no C6S config that fits. Not run",
+   "verdict": "not formed (Strata prefill 0.36x-0.43x of llama.cpp; over the VRAM line at 14K)"
   },
   {
    "id": "strata-125b-probe",
@@ -2234,7 +2430,7 @@
     "No reboot, shutdown or sleep. Never run wsl --shutdown.",
     "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
     "Bind the server to the loopback address only. No outside traffic.",
-    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Log disk writes for the run (bytes written to the model disk, from the kernel disk counters before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
     "Stop on any screen blanking under load and log power and temperature.",
     "Needs the owner's go for the disk space. No .wslconfig change. Stop if swap use rises above 1 GiB."
    ],
@@ -2254,7 +2450,7 @@
    ],
    "test": "On the 35B MoE file: first a support probe for split KV and VRAM loans on this engine path and under WSL2. Available features get a paired A/B against the best Strata config so far, with long-prompt probes, needle checks, the held-out tier rule and temperature-0 token agreement.",
    "metric": "Support verdict per feature (available, not available under WSL2, not on this engine path); prefill tok/s at 32K and max context, decode after fill, needle passes, held-out paired pass table and McNemar p, temperature-0 agreement (%, first divergence), peak VRAM and RAM.",
-   "target": "Target: prefill at least 1.10x with decode at least 0.95x, needles all pass, compare_tiers no-regression on the held-out set (paired CI low > -5 pp), temperature-0 text identical (split KV) or a reported rounding change (loan). A feature that is not available is a measured negative, not a failure of the chain.",
+   "target": "Target: prefill at least 1.10x with decode at least 0.95x, needles all pass, no regression under the tier pass rule on the held-out set (paired CI low > -5 pp), temperature-0 text identical (split KV) or a reported rounding change (loan). A feature that is not available is a measured negative, not a failure of the chain.",
    "status": "measured",
    "result": [
     {
@@ -2274,7 +2470,7 @@
     "No reboot, shutdown or sleep. Never run wsl --shutdown.",
     "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
     "Bind the server to the loopback address only. No outside traffic.",
-    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Log disk writes for the run (bytes written to the model disk, from the kernel disk counters before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
     "Stop on any screen blanking under load and log power and temperature."
    ],
    "public_note": "Measured negative (support probe, no GPU run). Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source",
@@ -2293,7 +2489,7 @@
    ],
    "test": "On the 35B MoE file: a support probe for scorer tile options on sm_86, then a paired A/B of each option against the best Strata config so far, with a bit-exact score check, the held-out tier rule and temperature-0 token agreement.",
    "metric": "Support verdict; prefill tok/s per point, scorer calls checked and mismatches, decode tok/s, held-out paired pass table and McNemar p, temperature-0 agreement.",
-   "target": "Target: prefill at least 1.10x at the longest prompt with zero score mismatches, decode at least 0.95x, compare_tiers no-regression on the held-out set, temperature-0 text identical.",
+   "target": "Target: prefill at least 1.10x at the longest prompt with zero score mismatches, decode at least 0.95x, no regression under the tier pass rule on the held-out set, temperature-0 text identical.",
    "status": "measured",
    "result": [
     {
@@ -2313,7 +2509,7 @@
     "No reboot, shutdown or sleep. Never run wsl --shutdown.",
     "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
     "Bind the server to the loopback address only. No outside traffic.",
-    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Log disk writes for the run (bytes written to the model disk, from the kernel disk counters before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
     "Stop on any screen blanking under load and log power and temperature.",
     "A CUDA compile runs with no GPU job at the same time."
    ],
@@ -2334,7 +2530,7 @@
    ],
    "test": "On the 35B MoE file: a support probe for the routing prior, then a paired A/B against the best Strata config so far, with the held-out tier rule and temperature-0 token agreement (thresholds: top-1 agreement at least 90%, mean KL at most 0.05 nats).",
    "metric": "Support verdict; agent decode tok/s, expert-cache hit %, top-1 agreement and mean KL against arm A, loop events per run, held-out paired pass table and McNemar p.",
-   "target": "Target: decode at least 1.10x, compare_tiers no-regression on the held-out set (paired CI low > -5 pp), loop events not higher, top-1 agreement >= 90% and mean KL <= 0.05 nats. A loss on any correctness check is a loss.",
+   "target": "Target: decode at least 1.10x, no regression under the tier pass rule on the held-out set (paired CI low > -5 pp), loop events not higher, top-1 agreement >= 90% and mean KL <= 0.05 nats. A loss on any correctness check is a loss.",
    "status": "measured",
    "result": [
     {
@@ -2355,7 +2551,7 @@
     "No reboot, shutdown or sleep. Never run wsl --shutdown.",
     "No firmware, VBIOS, ESP, BCD or NVRAM writes.",
     "Bind the server to the loopback address only. No outside traffic.",
-    "Log disk writes for the run (bytes written to the model disk, from /proc/diskstats before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
+    "Log disk writes for the run (bytes written to the model disk, from the kernel disk counters before and after). Weights are read-heavy; the only expected writes are the one-time download and logs.",
     "Stop on any screen blanking under load and log power and temperature."
    ],
    "public_note": "Measured negative (support probe, no GPU run). Credit: the RTX 2080 result and recipe are by Riccardo Giorato (https://github.com/riccardogiorato/local-ai-RTX-2080, article https://x.com/riccardogiorato/status/2116202671829106767). The engine is Strata by Niko1221 (https://github.com/Niko1221/Strata, MIT License). This tree uses no code from either repo; it runs the Strata release from its source",
@@ -2384,20 +2580,20 @@
    "result": [
     {
      "metric": "verdict",
-     "value": "Not formed: Strata prefill is below llama.cpp (0.43x at a 2K prompt, strata-nokq-speed). Not run",
-     "source": "results-locked/strata-nokq-speed.md"
+     "value": "Not formed: Strata prefill is 0.36x to 0.43x of llama.cpp (strata-nokq-speed, strata-nokq-14k), and at 14K Strata goes over the VRAM line. No prefill gain to build on and no C6S config that fits. Not run",
+     "source": "results/strata-nokq-14k.md"
     }
    ],
    "confounds": [
     "The agent is not deterministic. Use the paired rule on the same tasks, not two independent pass rates.",
     "C6S and C6 use the same model family on different engines. When c6-confirm runs later, it also reports C6 against C6S.",
-    "Not formed: strata-nokq-boot boots, but strata-nokq-speed measured Strata prefill at 0.43x of llama.cpp. It reopens only on a new Strata result with prefill at or above llama.cpp."
+    "Not formed (ruling): Strata prefill is 0.36x to 0.43x of llama.cpp, and at 14K peak VRAM is over the 7726 MiB line. The 1.27x decode at 2K is not sufficient alone. Examine this again only if a new pinned Strata release changes VRAM use or prefill."
    ],
    "safety_notes": [
     "No power, clock or undervolt changes. Stop on any screen blanking."
    ],
-   "public_note": "Not formed: Strata prefill is below llama.cpp (0.43x at a 2K prompt, strata-nokq-speed). Not run",
-   "verdict": "not formed (Strata prefill below llama.cpp)"
+   "public_note": "Not formed: Strata prefill is 0.36x to 0.43x of llama.cpp (strata-nokq-speed, strata-nokq-14k), and at 14K Strata goes over the VRAM line. No prefill gain to build on and no C6S config that fits. Not run",
+   "verdict": "not formed (Strata prefill 0.36x-0.43x of llama.cpp; over the VRAM line at 14K)"
   },
   {
    "id": "llama-native-sm86",
@@ -2408,9 +2604,9 @@
     "c1-anchor"
    ],
    "unlocks": [],
-   "test": "0) Check first: read the CMake log of the current build. If CMAKE_CUDA_ARCHITECTURES already includes 86, record the node as no-op (measured) and stop. 1) Else, if cmake or the CUDA toolkit is missing, install them inside WSL only (never on Windows), and only if free disk on the system disk stays at 20 GiB or more after the install; otherwise record a node BLOCKER and stop. Build the same llama.cpp commit with CMAKE_CUDA_ARCHITECTURES=86 (CPU-only compile, no GPU job at the same time). 2) Paired A/B on C1 with the same args: current build against the native build, AB BA order, 2 boots per arm. llama-bench pp512, pp4096, tg128 n = 5, and server-reported agent decode. 3) Correctness: temperature-0 token agreement on 20 fixed prompts and one paired held-out run judged by the compare_tiers rule.",
+   "test": "0) Check first: read the CMake log of the current build. If CMAKE_CUDA_ARCHITECTURES already includes 86, record the node as no-op (measured) and stop. 1) Else, if cmake or the CUDA toolkit is missing, install them inside WSL only (never on Windows), and only if free disk on the system disk stays at 20 GiB or more after the install; otherwise record a node BLOCKER and stop. Build the same llama.cpp commit with CMAKE_CUDA_ARCHITECTURES=86 (CPU-only compile, no GPU job at the same time). 2) Paired A/B on C1 with the same args: current build against the native build, AB BA order, 2 boots per arm. llama-bench pp512, pp4096, tg128 n = 5, and server-reported agent decode. 3) Correctness: temperature-0 token agreement on 20 fixed prompts and one paired held-out run judged by the tier pass rule.",
    "metric": "CMAKE_CUDA_ARCHITECTURES of the current build; pp512, pp4096, tg128 and agent decode per arm (median, range); temperature-0 agreement; held-out paired pass table and McNemar p.",
-   "target": "Target: no-op if 86 is already built in. Otherwise the native build wins if decode or prefill is at least 1.10x with compare_tiers no-regression and temperature-0 text identical. A win changes the C1 build for later tiers only after a rerun of c1-anchor.",
+   "target": "Target: no-op if 86 is already built in. Otherwise the native build wins if decode or prefill is at least 1.10x with no regression under the tier pass rule and temperature-0 text identical. A win changes the C1 build for later tiers only after a rerun of c1-anchor.",
    "status": "measured",
    "result": [
     {
@@ -2599,7 +2795,7 @@
     {
      "metric": "peak VRAM",
      "value": "7712 of 7726 MiB (locked fit budget) in the paired speed session (strata-nokq-speed); 7581 MiB in the boot search",
-     "source": "results-locked/strata-nokq-speed.md"
+     "source": "results/strata-nokq-speed.md"
     },
     {
      "metric": "speed",
@@ -2609,14 +2805,14 @@
     {
      "metric": "speed at the frozen config, ~2K prompt (LOCKED, 16K context, 3 expert slots, paired llama.cpp arm)",
      "value": "Strata prefill 0.43x llama.cpp (69.5 vs 162.4 tok/s, n=3 each); Strata decode 1.27x llama.cpp (29.9 vs 23.6 tok/s, n=3 each); MTP acceptance 72.4% (n=3). Dev prompts only, temperature 0. No promotion, no correctness claim.",
-     "source": "results-locked/strata-nokq-speed.md",
+     "source": "results/strata-nokq-speed.md",
      "mode": "LOCKED",
      "tag": "measured, no promotion"
     },
     {
      "metric": "speed at ~15K prompt",
      "value": "n=0 by context overflow, not a failure of either server: the probe prompt tokenized to 16,791 tokens, over the 16,384-token context, and both servers refused it. A ~14K-token probe (prompt plus reply under 16K, n=3, both servers, same paired config) is queued at low priority after the c1-anchor rerun.",
-     "source": "results-locked/strata-nokq-speed.md",
+     "source": "results/strata-nokq-speed.md",
      "mode": "LOCKED",
      "tag": "n=0 (context overflow)"
     }
@@ -2642,7 +2838,8 @@
     "strata-nokq-boot"
    ],
    "unlocks": [
-    "strata-mtp-prefill"
+    "strata-mtp-prefill",
+    "strata-nokq-14k"
    ],
    "test": "Config: the strata-nokq-boot frozen config (Strata with the int8 prompt kernels off (STRATA_MMQ_KQ=0), 16K context, 3 expert slots, MTP 2, prompt chunk 512). Dev prompts only, temperature 0, penalties 0. Probes: prefill at about 2K and about 15K, and greedy decode, n = 3 medians. Paired llama.cpp arm in the same locked session on the same prompts at the same context (strata-fit config). Fit rule: peak VRAM at most 7726 MiB. Mid-run checks keep every stop and abort except the load-time RAM gate.",
    "metric": "Prefill and decode tok/s against llama.cpp, MTP draft acceptance, peak VRAM MiB.",
@@ -2652,37 +2849,37 @@
     {
      "metric": "prefill, 2K prompt",
      "value": "69.5 tok/s (Strata) against 162.4 tok/s (llama.cpp): 0.43x",
-     "source": "results-locked/strata-nokq-speed.md"
+     "source": "results/strata-nokq-speed.md"
     },
     {
      "metric": "decode",
      "value": "29.9 tok/s (Strata) against 23.6 tok/s (llama.cpp): 1.27x",
-     "source": "results-locked/strata-nokq-speed.md"
+     "source": "results/strata-nokq-speed.md"
     },
     {
      "metric": "MTP draft acceptance",
      "value": "72.4%",
-     "source": "results-locked/strata-nokq-speed.md"
+     "source": "results/strata-nokq-speed.md"
     },
     {
      "metric": "peak VRAM",
      "value": "7712 of 7726 MiB",
-     "source": "results-locked/strata-nokq-speed.md"
+     "source": "results/strata-nokq-speed.md"
     },
     {
      "metric": "prefill, 15K prompt",
      "value": "not measured (n = 0): prompt plus reply exceeded 16K on both servers. This is not a server failure",
-     "source": "results-locked/strata-nokq-speed.md"
+     "source": "results/strata-nokq-speed.md"
     },
     {
      "metric": "verdict",
      "value": "No promotion. llama.cpp stays the default. Strata prefill is below llama.cpp, so strata-mtp-prefill and c6s-confirm are not formed",
-     "source": "results-locked/strata-nokq-speed.md"
+     "source": "results/strata-nokq-speed.md"
     }
    ],
    "confounds": [
     "One session (LOCKED, post-swap). Small samples. No correctness check.",
-    "The 15K prompt was not measured. A 14K point (n = 3) is queued after the c1-anchor rerun.",
+    "The 15K prompt was not measured. The 14K point is measured in strata-nokq-14k: peak VRAM 7772 MiB (over the 7726 MiB line) and prefill 0.36x of llama.cpp.",
     "Desktop GPU with display overhead: idle use is about 466 MiB. Probes start only when desktop GPU use is low (15 s median)."
    ],
    "safety_notes": [
@@ -2691,146 +2888,158 @@
    ],
    "public_note": "Measured (locked mode, one session): with its int8 prompt kernels off, the Strata engine reads a 2K prompt at 69.5 tok/s against 162.4 tok/s on llama.cpp (0.43x). It decodes at 29.9 against 23.6 tok/s (1.27x), with 72.4% MTP draft acceptance. Peak VRAM is 7712 of 7726 MiB. The 15K prompt was not measured. No correctness check. No promotion: llama.cpp stays the default. Credit: see strata-replicate",
    "verdict": "no promotion; llama.cpp stays the default (Strata prefill below llama.cpp)"
+  },
+  {
+   "id": "strata-nokq-14k",
+   "tier": "inference",
+   "title": "Strata 14K prefill point with int8 prompt kernels off (35B MoE)",
+   "goal": "Measure the 14K prompt prefill point that strata-nokq-speed did not measure, against llama.cpp on the same 35B file, in locked mode.",
+   "prereqs": [
+    "strata-nokq-speed"
+   ],
+   "unlocks": [],
+   "test": "Config: the strata-nokq-boot frozen config (Strata with the int8 prompt kernels off (STRATA_MMQ_KQ=0), 16K context, 3 expert slots). Prefill at about a 14K prompt, n = 3 medians, with a paired llama.cpp arm on the same prompts at the same context. Fit rule: peak VRAM at most 7726 MiB.",
+   "metric": "14K prefill tok/s against llama.cpp, peak VRAM MiB.",
+   "target": "Target: prefill at or above 1.0x of llama.cpp with peak VRAM at most 7726 MiB would re-form strata-mtp-prefill. No promotion from this node alone.",
+   "status": "measured",
+   "result": [
+    {
+     "metric": "boot",
+     "value": "Boots at 16K context with 3 expert slots",
+     "source": "results/strata-nokq-14k.md"
+    },
+    {
+     "metric": "peak VRAM",
+     "value": "7772 MiB, over the 7726 MiB line: this fails the VRAM rule",
+     "source": "results/strata-nokq-14k.md"
+    },
+    {
+     "metric": "prefill, 14K prompt",
+     "value": "67.5 tok/s median of 2 complete runs (Strata) against 185.4 tok/s (llama.cpp): 0.36x. A third run aborted on VRAM at about 5,100 of 13,991 prompt tokens (n = 2 complete, 1 partial).",
+     "source": "results/strata-nokq-14k.md"
+    },
+    {
+     "metric": "verdict",
+     "value": "Measured negative. Ruling: no Strata node is re-formed. strata-replicate stays a negative for Strata default settings only. strata-mtp-prefill and c6s-confirm stay not formed: Strata prefill is 0.36x to 0.43x of llama.cpp, and at 14K Strata goes over the VRAM line. So there is no prefill gain to build on and no C6S config that fits. The 1.27x decode at 2K is recorded, but it is not sufficient alone. Examine this again only if a new pinned Strata release changes VRAM use or prefill.",
+     "source": "results/strata-nokq-14k.md"
+    }
+   ],
+   "confounds": [
+    "One session (LOCKED). Small samples. No correctness check.",
+    "Desktop GPU with display overhead: idle use is about 466 MiB.",
+    "About 15% GPU use from a process outside the lab during the run (desktop GPU with display overhead)."
+   ],
+   "safety_notes": [
+    "No power, clock or undervolt changes.",
+    "No firmware, VBIOS, ESP, BCD or NVRAM writes."
+   ],
+   "public_note": "Measured negative (locked mode): with its int8 prompt kernels off, the Strata engine boots the 35B at 16K with 3 expert slots, but at a 14K prompt its peak VRAM is 7772 MiB. This is over the 7726 MiB line, so it fails the VRAM rule. It reads the 14K prompt at 67.5 tok/s (median of 2 complete runs; a third run stopped on VRAM) against 185.4 tok/s on llama.cpp (0.36x). No Strata node is re-formed. Credit: see strata-replicate",
+   "verdict": "negative: peak VRAM over the 7726 MiB line, prefill 0.36x of llama.cpp"
   }
  ],
  "next_order": [
   {
    "rank": 1,
-   "id": "thinking-budget",
-   "reason": "In progress."
+   "id": "parallel-slots",
+   "reason": "In progress. Fixed context per slot; the largest slot count only if it fits."
   },
   {
    "rank": 2,
-   "id": "c1-anchor",
-   "reason": "Rerun of C1 on the held-out set: all 72 tasks, paired against the C0 rerun."
+   "id": "c4-confirm",
+   "reason": "C4 against the locked C1 anchor rerun (post-swap) on the held-out set, with a 12G test memory cap on both arms. If parallel-slots also loses, C4 is not formed and stays equal to C1."
   },
   {
    "rank": 3,
-   "id": "c2-confirm",
-   "reason": "Held until the C1 rerun pairs cleanly against C0."
-  },
-  {
-   "rank": 4,
-   "id": "agent-stack",
-   "reason": "C3 against C2 on the held-out set."
-  },
-  {
-   "rank": 5,
-   "id": "spec-ngram",
-   "reason": "Short run with no VRAM cost."
-  },
-  {
-   "rank": 6,
-   "id": "fit-map",
-   "reason": "Before parallel-slots: the largest slot count runs only if the fit map shows the KV fits. Also settles the model file check."
-  },
-  {
-   "rank": 7,
-   "id": "parallel-slots",
-   "reason": "Fixed context per slot; the largest slot count only if it fits."
-  },
-  {
-   "rank": 8,
-   "id": "c4-confirm",
-   "reason": "C4 against C3 on the held-out set."
-  },
-  {
-   "rank": 9,
-   "id": "quant-choice",
-   "reason": "Which quant to pick at full offload. It uses the fit-map limits."
-  },
-  {
-   "rank": 10,
    "id": "dense-newer",
    "reason": "Which newer small model to pick at full offload. It uses the fit-map limits."
   },
   {
-   "rank": 11,
+   "rank": 4,
+   "id": "quant-choice",
+   "reason": "Held until the C4 confirm is measured. Evidence from the fit map: Q4_K_M fits 65536 ctx at 68.25 tok/s decode; Q5_K_M and Q6_K fit 40960 ctx; Q8_0 does not fit cleanly. Needs the agent bench to decide."
+  },
+  {
+   "rank": 5,
    "id": "c5-confirm",
    "reason": "C5 against C4 on the held-out set."
   },
   {
-   "rank": 12,
-   "id": "offload-curve",
-   "reason": "Shows how much speed is lost for each layer in system RAM. Agent decode is 57.54 tok/s at full offload and 18.22 tok/s at -ngl 30."
-  },
-  {
-   "rank": 13,
+   "rank": 6,
    "id": "moe-offload",
    "reason": "Shows if a 35B MoE model is usable on an 8 GB card with its experts in system RAM. The WSL2 memory cap is now 24 GB (WSL2 reports 23 GiB)."
   },
   {
-   "rank": 14,
+   "rank": 7,
    "id": "c6-confirm",
    "reason": "C6 against C5 on the held-out set."
   },
   {
-   "rank": 15,
+   "rank": 8,
    "id": "pause-handoff",
    "reason": "Pause and start path of the prepared package (manual trigger)."
   },
   {
-   "rank": 16,
+   "rank": 9,
    "id": "uptime-slo",
    "reason": "Background observer: start it, then go on. It blocks nothing."
   },
   {
-   "rank": 17,
+   "rank": 10,
    "id": "auto-pause-trigger",
    "reason": "The watcher only logs games today. This makes it pause and start the server."
   },
   {
-   "rank": 18,
+   "rank": 11,
    "id": "thermal-soak",
    "reason": "C1, no request proxy, 4 h. Full offload runs at 203.1 W mean of a 220 W limit. Logging only."
   },
   {
-   "rank": 19,
+   "rank": 12,
    "id": "watchdog-restart",
    "reason": "Crash recovery with state restored. Back-off is expected to miss 30 s from kill 3 on."
   },
   {
-   "rank": 20,
+   "rank": 13,
    "id": "driver-inventory",
    "reason": "Read-only version inventory. Upgrade candidates are research entries only."
   },
   {
-   "rank": 21,
+   "rank": 14,
    "id": "wh-per-pass",
    "reason": "Free with each bench once power logging starts before task 1."
   },
   {
-   "rank": 22,
+   "rank": 15,
    "id": "spec-draft",
    "reason": "Bigger speed-up, but it costs VRAM."
   },
   {
-   "rank": 23,
+   "rank": 16,
    "id": "best-of-n",
    "reason": "Uses spare slots to lift the 0-pass roles."
   },
   {
-   "rank": 24,
+   "rank": 17,
    "id": "agent-workers",
    "reason": "More jobs per hour if the CPU keeps up."
   },
   {
-   "rank": 25,
+   "rank": 18,
    "id": "fp16-workloads",
    "reason": "The only place the unlock pays. Unlocked-only numbers until locked-ab runs."
   },
   {
-   "rank": 26,
+   "rank": 19,
    "id": "bigger-class",
    "reason": "Capstone and C7 confirm against C6 (C6S is not formed)."
   },
   {
-   "rank": 27,
+   "rank": 20,
    "id": "useful-work-per-wh",
    "reason": "Capstone. Runs when its prereqs are measured."
   },
   {
-   "rank": 28,
+   "rank": 21,
    "id": "long-soak",
    "reason": "Last. 24 h on C1, no request proxy."
   }
